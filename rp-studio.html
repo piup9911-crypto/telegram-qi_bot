@@ -1,0 +1,2455 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RP Studio</title>
+    <style>
+      :root {
+        --bg: #f5f6f2;
+        --panel: #ffffff;
+        --ink: #202124;
+        --muted: #667079;
+        --line: #d8ddd6;
+        --accent: #1f7a68;
+        --accent-soft: #e3f1ed;
+        --warn: #9a5b16;
+        --code: #151917;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--bg);
+        font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+
+      header {
+        padding: 18px 22px 12px;
+        background: #eef1ed;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      h2 {
+        font-size: 18px;
+      }
+
+      h3 {
+        font-size: 14px;
+      }
+
+      .muted,
+      .hint,
+      label span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .header-row,
+      .section-head,
+      .actions,
+      .item-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        padding: 12px 22px;
+        border-bottom: 1px solid var(--line);
+        background: #f9faf7;
+        overflow-x: auto;
+      }
+
+      .tab {
+        min-width: 108px;
+        color: var(--ink);
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+
+      .tab.active {
+        color: #fff;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .view {
+        display: none;
+        padding: 20px 22px 28px;
+      }
+
+      .view.active {
+        display: block;
+      }
+
+      .grid,
+      .library-grid,
+      .memory-grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .grid {
+        grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1.2fr);
+      }
+
+      .library-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .memory-grid {
+        grid-template-columns: minmax(230px, 0.55fr) minmax(420px, 1.45fr);
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      .stack,
+      .item-list,
+      .chat-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      input,
+      select,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 9px 10px;
+        background: #fff;
+        color: var(--ink);
+        outline: none;
+      }
+
+      input[type="checkbox"] {
+        width: auto;
+      }
+
+      textarea {
+        min-height: 92px;
+        resize: vertical;
+        line-height: 1.5;
+      }
+
+      select[multiple] {
+        min-height: 118px;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+
+      label {
+        display: grid;
+        gap: 5px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      button {
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        border-radius: 6px;
+        padding: 9px 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      button.secondary {
+        background: #fff;
+        color: var(--accent);
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+
+      .chat-item,
+      .item {
+        width: 100%;
+        text-align: left;
+        color: var(--ink);
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 11px 12px;
+      }
+
+      .chat-item.active {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .item-title {
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+
+      .item-body {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .prompt-toolbar,
+      .prompt-row,
+      .prompt-row-main,
+      .prompt-row-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .prompt-toolbar {
+        justify-content: space-between;
+      }
+
+      .prompt-list {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        background: #f2efe6;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .prompt-row {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px;
+        align-items: flex-start;
+      }
+
+      .prompt-row-main {
+        min-width: 0;
+        flex: 1;
+        flex-wrap: wrap;
+      }
+
+      .prompt-row-title {
+        min-width: 160px;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .prompt-token {
+        min-width: 54px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: right;
+      }
+
+      .prompt-row textarea {
+        display: none;
+        margin-top: 8px;
+        min-height: 150px;
+      }
+
+      .prompt-row.open {
+        display: grid;
+      }
+
+      .prompt-row.open textarea {
+        display: block;
+      }
+
+      .prompt-mini {
+        width: auto;
+        min-width: 74px;
+        padding: 6px 7px;
+      }
+
+      .prompt-name {
+        min-width: 180px;
+      }
+
+      .icon-button {
+        min-width: 34px;
+        padding: 6px 8px;
+      }
+
+      .compat-field {
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fbfaf6;
+      }
+
+      .compat-field summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .facts,
+      .row {
+        display: grid;
+        gap: 10px;
+      }
+
+      .facts {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .fact {
+        background: #fbfcfa;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 11px;
+      }
+
+      .fact strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 14px;
+        overflow-wrap: anywhere;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .status,
+      .copy-note {
+        min-height: 18px;
+        color: var(--warn);
+        font-size: 12px;
+      }
+
+      .test-result {
+        min-height: 80px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfa;
+        padding: 12px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .memory-workbench {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .memory-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(249, 250, 247, 0.96);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .memory-board {
+        display: grid;
+        gap: 14px;
+      }
+
+      .sheet-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        background: #f4f7f3;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .sheet-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .sheet-title strong {
+        font-size: 15px;
+      }
+
+      .sheet-switches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .sheet-wrap {
+        overflow: auto;
+        max-height: 62vh;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .sheet-table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+
+      .sheet-table th,
+      .sheet-table td {
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 7px 8px;
+        vertical-align: top;
+      }
+
+      .sheet-table th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #eef1ed;
+        font-size: 12px;
+        text-align: left;
+      }
+
+      .sheet-table td {
+        min-width: 120px;
+        background: #fff;
+        outline: none;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .sheet-table td[data-column] {
+        cursor: text;
+      }
+
+      .sheet-table td[contenteditable="true"]:focus,
+      .sheet-table td.selected-cell {
+        box-shadow: inset 0 0 0 2px var(--accent);
+      }
+
+      .row-number,
+      .row-actions {
+        width: 54px;
+        min-width: 54px;
+        text-align: center;
+        color: var(--muted);
+        background: #fbfcfa !important;
+        font-size: 12px;
+      }
+
+      .insert-row td:not(.row-number):not(.row-actions) {
+        background: #eef8ef;
+      }
+
+      .update-cell {
+        background: #eaf2ff !important;
+      }
+
+      .delete-row-preview td {
+        background: #fff1e8 !important;
+        color: #8a4b18;
+        text-decoration: line-through;
+      }
+
+      .sheet-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 12px;
+        color: var(--muted);
+        font-size: 12px;
+        background: #fbfcfa;
+      }
+
+      .delete-log {
+        border-left: 3px solid #c77f31;
+      }
+
+      .empty-sheet {
+        padding: 14px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .memory-side {
+        position: sticky;
+        top: 12px;
+      }
+
+      .memory-stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .mini-stat {
+        padding: 9px;
+        background: #fbfcfa;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .cell-history-box {
+        min-height: 120px;
+        max-height: 260px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+
+      details.log-detail {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+
+      details.log-detail summary {
+        cursor: pointer;
+        list-style: none;
+      }
+
+      details.log-detail summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .log-summary {
+        display: grid;
+        grid-template-columns: 170px 80px minmax(0, 1fr) minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .log-status {
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .log-status.error {
+        color: var(--warn);
+      }
+
+      .log-full {
+        margin-top: 10px;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      pre {
+        min-height: 520px;
+        margin: 12px 0 0;
+        padding: 14px;
+        overflow: auto;
+        color: #eef5ee;
+        background: var(--code);
+        border-radius: 8px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      @media (max-width: 980px) {
+        .grid,
+        .library-grid,
+        .memory-grid,
+        .memory-workbench,
+        .facts,
+        .row,
+        .log-summary {
+          grid-template-columns: 1fr;
+        }
+
+        .header-row,
+        .section-head,
+        .actions {
+          align-items: stretch;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>RP Studio</h1>
+          <p class="muted">管理 Telegram RP 会话的 preset、角色、世界书、记忆表格和生成日志。</p>
+        </div>
+        <button class="secondary" id="refreshBtn">刷新全部</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="RP Studio sections">
+      <button class="tab active" data-tab="session">当前会话</button>
+      <button class="tab" data-tab="library">设定库</button>
+      <button class="tab" data-tab="memory">记忆表格</button>
+      <button class="tab" data-tab="preview">Prompt Preview</button>
+      <button class="tab" data-tab="logs">Generation Logs</button>
+      <button class="tab" data-tab="archives">归档</button>
+    </nav>
+
+    <main>
+      <section class="view active" id="tab-session">
+        <div class="grid">
+          <div class="panel stack">
+            <div class="section-head">
+              <div>
+                <h2>选择会话</h2>
+                <p class="muted">同一个 chatId 只会显示一次。</p>
+              </div>
+            </div>
+            <label>
+              手动输入 chatId
+              <span>例如 telegram_rp_7541487750；只填数字也会自动补前缀。</span>
+              <input id="manualChatId" value="telegram_rp_7541487750" />
+            </label>
+            <button id="useManualBtn">使用这个会话</button>
+            <div class="chat-list" id="chatList"></div>
+            <div class="status" id="leftStatus"></div>
+          </div>
+
+          <div class="panel stack">
+            <div class="section-head">
+              <div>
+                <h2>当前绑定</h2>
+                <p class="muted">决定这个会话生成时注入哪套设定。</p>
+              </div>
+              <a href="/" target="_blank">打开聊天记录</a>
+            </div>
+            <div class="facts">
+              <div class="fact"><span class="muted">chatId</span><strong id="currentChatFact">-</strong></div>
+              <div class="fact"><span class="muted">Preset</span><strong id="currentPresetFact">未绑定</strong></div>
+              <div class="fact"><span class="muted">Character</span><strong id="currentCharacterFact">未绑定</strong></div>
+            </div>
+            <label>选择 preset <select id="presetSelect"></select></label>
+            <label>选择 character <select id="characterSelect"></select></label>
+            <label>
+              User 显示名
+              <span>用于记忆表格里的真实用户名；留空时仍使用 &lt;user&gt;。</span>
+              <input id="userDisplayName" placeholder="例如：兮兮" />
+            </label>
+            <label>绑定 lorebook <span>可多选，命中关键词后注入 [World Info]。</span><select id="lorebookSelect" multiple></select></label>
+            <label>Author's Note <textarea id="authorNote"></textarea></label>
+            <button id="saveBindingBtn">保存绑定</button>
+          </div>
+        </div>
+
+        <div class="panel stack" style="margin-top: 16px">
+          <div class="section-head">
+            <div>
+              <h2>网页测试生成</h2>
+              <p class="muted">直接调用 /api/rp/generate；会写 generation log，自动记忆整理按后端策略排队。</p>
+            </div>
+          </div>
+          <textarea id="testUserInput" placeholder="输入一句测试消息"></textarea>
+          <div class="actions">
+            <button id="testGenerateBtn">测试生成</button>
+            <button class="secondary" id="openLogsBtn">查看日志</button>
+          </div>
+          <div class="test-result" id="testResult">等待测试。</div>
+        </div>
+      </section>
+
+      <section class="view" id="tab-library">
+        <div class="library-grid">
+          <div class="panel stack">
+            <div class="section-head"><h2>Preset</h2><button class="secondary" id="togglePresetFormBtn">新建</button></div>
+            <div class="item-list" id="presetList"></div>
+            <div class="stack hidden" id="presetForm">
+              <label>
+                预设名称
+                <input id="presetName" placeholder="例如：自由 RP 主预设" />
+              </label>
+              <div class="stack">
+                <div class="prompt-toolbar">
+                  <h3>提示词</h3>
+                  <button class="secondary" id="addPromptBlockBtn" type="button">新增提示词</button>
+                </div>
+                <div class="prompt-list" id="presetPromptList"></div>
+              </div>
+              <div class="library-grid">
+                <div class="stack">
+                  <div class="section-head">
+                    <h3>导入导出与重置 preset</h3>
+                    <div class="actions">
+                      <button class="secondary" id="presetImportBtn" type="button">导入</button>
+                      <button class="secondary" id="presetExportBtn" type="button">导出</button>
+                      <button class="secondary" id="presetResetBtn" type="button">重置</button>
+                      <input class="hidden" id="presetImportFile" type="file" accept="application/json" />
+                    </div>
+                  </div>
+                  <h3>插件开关</h3>
+                  <label><span><input id="presetTableEnabled" type="checkbox" checked /> 启用 preset 注入</span></label>
+                  <label><span><input id="presetDebugMode" type="checkbox" /> 调试模式</span><span>保留字段，方便以后把详细注入日志显示到页面。</span></label>
+                  <details class="compat-field">
+                    <summary>兼容字段：旧消息模板</summary>
+                    <label>
+                      <span>旧 preset / 表格插件导入时保留；新 preset 优先使用上面的提示词列表。</span>
+                      <textarea id="presetMessageTemplate" rows="8"></textarea>
+                    </label>
+                  </details>
+                  <div class="row">
+                    <label>
+                      注入
+                      <select id="presetInjectionMode">
+                        <option value="injection_off">关闭注入</option>
+                        <option value="deep_system">@D ⚙</option>
+                        <option value="deep_user">@D 👤</option>
+                        <option value="deep_assistant">@D 🤖</option>
+                      </select>
+                    </label>
+                    <label>
+                      深度
+                      <input id="presetInjectionDepth" type="number" min="0" value="1" />
+                    </label>
+                  </div>
+                  <label>
+                    Main Prompt 兼容字段
+                    <span>保留旧 preset 字段；如果消息模板为空，后端会退回使用这里。</span>
+                    <textarea id="presetSystemPrompt" placeholder="可留空"></textarea>
+                  </label>
+                </div>
+                <div class="stack">
+                  <h3>运行策略</h3>
+                  <label>
+                    填表行为发生在
+                    <select id="presetFillTableTime">
+                      <option value="chat">聊天的同时填表</option>
+                      <option value="after">收到消息后再单独填表</option>
+                    </select>
+                  </label>
+                  <label><span><input id="presetTableReadEnabled" type="checkbox" checked /> AI读表开关</span></label>
+                  <label><span><input id="presetTableEditEnabled" type="checkbox" checked /> AI改表开关</span></label>
+                  <h3>分步填表</h3>
+                  <label><span><input id="presetStepByStep" type="checkbox" /> 分步填表</span></label>
+                  <label><span><input id="presetStepByStepUseMainApi" type="checkbox" checked /> 使用主API</span></label>
+                  <div class="row">
+                    <label>
+                      上下文层数
+                      <input id="presetSeparateReadContextLayers" type="number" min="1" value="1" />
+                    </label>
+                    <label><span><input id="presetSeparateReadLorebook" type="checkbox" /> 读取世界书</span></label>
+                  </div>
+                  <label>
+                    独立填表整体结构
+                    <span>原项目里这里常放很激进的文本；默认留空，你自己写。</span>
+                    <textarea id="presetStepByStepUserPrompt" rows="6" placeholder="留空：由你自己填写"></textarea>
+                  </label>
+                  <label><span><input id="presetConfirmBeforeExecution" type="checkbox" checked /> 执行时确认</span></label>
+                  <label>
+                    Post-History Instructions
+                    <textarea id="presetPostHistoryPrompt" placeholder="可留空"></textarea>
+                  </label>
+                  <label>
+                    Context Length
+                    <input id="presetContextLength" type="number" min="1" value="1000000" />
+                  </label>
+                  <div class="row">
+                    <label>
+                      Temperature
+                      <input id="presetTemperature" type="number" step="0.1" min="0" max="2" value="0.8" />
+                    </label>
+                    <label>
+                      Top P
+                      <input id="presetTopP" type="number" step="0.05" min="0" max="1" value="0.9" />
+                    </label>
+                  </div>
+                  <div class="row">
+                    <label>
+                      Frequency Penalty
+                      <input id="presetFrequencyPenalty" type="number" step="0.1" min="-2" max="2" value="0" />
+                    </label>
+                    <label>
+                      Presence Penalty
+                      <input id="presetPresencePenalty" type="number" step="0.1" min="-2" max="2" value="0" />
+                    </label>
+                  </div>
+                  <label>
+                    Max Tokens
+                    <input id="presetMaxTokens" type="number" min="1" value="1200" />
+                  </label>
+                  <label>
+                    Stop Strings
+                    <textarea id="presetStops" placeholder="stop_strings，一行一个"></textarea>
+                  </label>
+                </div>
+              </div>
+              <button id="createPresetBtn">保存 Preset</button>
+            </div>
+          </div>
+
+          <div class="panel stack">
+            <div class="section-head"><h2>Character</h2><button class="secondary" id="toggleCharacterFormBtn">新建</button></div>
+            <div class="item-list" id="characterList"></div>
+            <div class="stack hidden" id="characterForm">
+              <input id="characterName" placeholder="名称" />
+              <textarea id="characterDescription" placeholder="description"></textarea>
+              <textarea id="characterPersonality" placeholder="personality"></textarea>
+              <textarea id="characterScenario" placeholder="scenario"></textarea>
+              <textarea id="characterFirstMes" placeholder="first_mes"></textarea>
+              <textarea id="characterMesExample" placeholder="mes_example"></textarea>
+              <button id="createCharacterBtn">保存 Character</button>
+            </div>
+          </div>
+
+          <div class="panel stack">
+            <div class="section-head"><h2>Lorebook</h2><button class="secondary" id="toggleLorebookFormBtn">新建</button></div>
+            <div class="item-list" id="lorebookList"></div>
+            <div class="stack hidden" id="lorebookForm">
+              <input id="lorebookName" placeholder="名称" />
+              <textarea id="lorebookDescription" placeholder="description"></textarea>
+              <button id="createLorebookBtn">保存 Lorebook</button>
+            </div>
+          </div>
+
+          <div class="panel stack">
+            <div class="section-head"><h2>Lore Entry</h2><button class="secondary" id="toggleLoreEntryFormBtn">新建</button></div>
+            <select id="entryLorebookSelect"></select>
+            <div class="item-list" id="loreEntryList"></div>
+            <div class="stack hidden" id="loreEntryForm">
+              <input id="loreEntryTitle" placeholder="标题" />
+              <textarea id="loreEntryKeys" placeholder="keys，一行一个"></textarea>
+              <textarea id="loreEntryContent" placeholder="content"></textarea>
+              <input id="loreEntryPriority" type="number" value="100" />
+              <button id="createLoreEntryBtn">保存 Entry</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="tab-memory">
+        <div class="memory-workbench">
+          <div class="stack">
+            <div class="memory-toolbar">
+              <div>
+                <h2>记忆表格</h2>
+                <p class="muted">全部表格集中显示；点击单元格直接编辑，保存后进入 prompt 注入。</p>
+              </div>
+              <div class="actions">
+                <button id="refreshMemoryBtn">刷新</button>
+                <button id="saveMemoryBtn">保存表格</button>
+                <button id="runMemoryUpdateBtn">立即整理</button>
+                <button id="rebuildMemoryBtn">完整重建</button>
+                <button class="secondary" id="initMemoryBtn">重建默认表</button>
+              </div>
+            </div>
+            <div class="memory-board" id="memoryBoard"></div>
+          </div>
+          <aside class="panel stack memory-side">
+            <div>
+              <h2>表格状态</h2>
+              <p class="muted" id="memoryStatus">等待读取。</p>
+            </div>
+            <div class="memory-stat-grid" id="memoryStats"></div>
+            <div class="actions">
+              <button class="secondary" id="exportMemoryBtn">导出 JSON</button>
+              <button class="secondary" id="importMemoryBtn">导入 JSON</button>
+              <button class="secondary" id="exportTablePresetBtn">导出表格预设</button>
+              <button class="secondary" id="importTablePresetBtn">导入表格预设</button>
+              <input class="hidden" id="memoryImportFile" type="file" accept="application/json" />
+              <input class="hidden" id="tablePresetImportFile" type="file" accept="application/json" />
+            </div>
+            <div>
+              <h3>选中单元格历史</h3>
+              <div class="item cell-history-box" id="cellHistoryBox">点击单元格后显示历史。</div>
+            </div>
+            <div class="section-head">
+              <h3>整理日志</h3>
+              <button class="secondary" id="refreshMemoryLogsBtn">刷新日志</button>
+            </div>
+            <div class="item-list" id="memoryLogList"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="tab-preview">
+        <div class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Prompt Preview</h2>
+              <p class="muted" id="previewUpdated">等待读取</p>
+            </div>
+            <div class="actions">
+              <button class="secondary" id="copyPromptBtn">复制 prompt</button>
+              <button class="secondary" id="previewBtn">重新生成</button>
+            </div>
+          </div>
+          <div class="copy-note" id="copyPromptStatus"></div>
+          <div class="facts">
+            <div class="fact"><span class="muted">chatId</span><strong id="previewChatId">-</strong></div>
+            <div class="fact"><span class="muted">preset</span><strong id="previewPreset">未绑定</strong></div>
+            <div class="fact"><span class="muted">character</span><strong id="previewCharacter">未绑定</strong></div>
+          </div>
+          <div class="item-list" id="triggeredLoreList"></div>
+          <pre id="promptPreview">等待选择会话。</pre>
+        </div>
+      </section>
+
+      <section class="view" id="tab-logs">
+        <div class="panel stack">
+          <div class="section-head"><h2>Generation Logs</h2><button class="secondary" id="refreshLogsBtn">刷新日志</button></div>
+          <div class="item-list" id="generationLogList"></div>
+        </div>
+      </section>
+
+      <section class="view" id="tab-archives">
+        <div class="panel stack">
+          <div class="section-head">
+            <div><h2>RP Archive</h2><p class="muted">归档当前 RP 会话，或从归档恢复一个续写窗口。</p></div>
+            <div class="actions"><button id="archiveCurrentBtn">归档当前会话</button><button class="secondary" id="refreshArchivesBtn">刷新归档</button></div>
+          </div>
+          <div class="item-list" id="archiveList"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const state = {
+        chatId: "telegram_rp_7541487750",
+        presets: [],
+        characters: [],
+        lorebooks: [],
+        loreEntries: [],
+        logs: [],
+        archives: [],
+        memory: null,
+        memoryLogs: [],
+        selectedMemoryCell: null,
+        presetDraftPrompts: []
+      };
+
+      const $ = (id) => document.getElementById(id);
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {})
+          }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "请求失败");
+        return data;
+      }
+
+      function rpChatId(chatId) {
+        const value = String(chatId || "").trim();
+        return value.startsWith("telegram_rp_") ? value : `telegram_rp_${value}`;
+      }
+
+      function option(label, value) {
+        const item = document.createElement("option");
+        item.textContent = label;
+        item.value = value;
+        return item;
+      }
+
+      function shortText(value, length = 120) {
+        const text = String(value || "").replace(/\s+/g, " ").trim();
+        return text.length > length ? `${text.slice(0, length)}...` : text || "-";
+      }
+
+      const defaultPresetMessageTemplate = [
+        "# dataTable 说明",
+        "以下是通过表格记录的当前场景信息以及历史记录信息，你需要以此为参考进行思考。",
+        "角色卡、世界书、作者备注和记忆表格都是可选补充；如果为空，不要在回复里提及缺失。",
+        "请保持沉浸式中文 RP，延续既有时间、地点、人物关系、情绪、任务约定和重要物品。",
+        "",
+        "{{tableData}}"
+      ].join("\n");
+
+      function defaultPresetPrompts() {
+        return [
+          {
+            identifier: "main",
+            name: "Main Prompt",
+            role: "system",
+            content: defaultPresetMessageTemplate,
+            system_prompt: true,
+            marker: false,
+            injection_position: 0,
+            injection_depth: 4,
+            injection_order: 100,
+            enabled: true
+          },
+          {
+            identifier: "memoryTable",
+            name: "记忆增强表格",
+            role: "system",
+            content: "{{tableData}}",
+            system_prompt: true,
+            marker: false,
+            injection_position: 1,
+            injection_depth: 4,
+            injection_order: 100,
+            enabled: true
+          }
+        ];
+      }
+
+      function promptIdentifier(name = "prompt") {
+        return String(name || "prompt")
+          .toLowerCase()
+          .replace(/[^a-z0-9\u4e00-\u9fa5]+/gi, "_")
+          .replace(/^_+|_+$/g, "")
+          .slice(0, 40) || `prompt_${Date.now().toString(36)}`;
+      }
+
+      function clonePrompt(prompt = {}, index = 0) {
+        return {
+          identifier: prompt.identifier || prompt.id || promptIdentifier(prompt.name || `prompt_${index + 1}`),
+          name: prompt.name || prompt.title || prompt.identifier || `Prompt ${index + 1}`,
+          role: prompt.role || "system",
+          content: prompt.content || prompt.prompt || prompt.text || "",
+          system_prompt: prompt.system_prompt !== false,
+          marker: prompt.marker === true,
+          injection_position: Number(prompt.injection_position ?? prompt.position ?? 0),
+          injection_depth: Number(prompt.injection_depth ?? prompt.depth ?? 4),
+          injection_order: Number(prompt.injection_order ?? prompt.order ?? 100),
+          enabled: prompt.enabled !== false
+        };
+      }
+
+      function promptDraftFromPreset(preset = {}) {
+        const prompts = Array.isArray(preset.prompts) && preset.prompts.length
+          ? preset.prompts
+          : Array.isArray(preset.prompt_blocks) && preset.prompt_blocks.length
+            ? preset.prompt_blocks
+            : defaultPresetPrompts();
+        const byId = new Map(prompts.map((prompt, index) => [clonePrompt(prompt, index).identifier, clonePrompt(prompt, index)]));
+        const draft = [];
+        const order = Array.isArray(preset.prompt_order) && preset.prompt_order.length && Array.isArray(preset.prompt_order[0].order)
+          ? preset.prompt_order[0].order
+          : [];
+        for (const entry of order) {
+          const identifier = entry.identifier || entry.id || entry.name || entry;
+          const prompt = byId.get(identifier);
+          if (!prompt) continue;
+          prompt.enabled = entry.enabled !== false;
+          draft.push(prompt);
+          byId.delete(identifier);
+        }
+        for (const prompt of byId.values()) draft.push(prompt);
+        return draft.length ? draft : defaultPresetPrompts();
+      }
+
+      function estimateTokens(text = "") {
+        return Math.ceil(String(text || "").length / 4);
+      }
+
+      function updatePromptRowSummary(row) {
+        const name = row.querySelector(".prompt-name").value.trim() || "Prompt";
+        const position = Number(row.querySelector(".prompt-position").value);
+        const depth = row.querySelector(".prompt-depth").value || "4";
+        row.querySelector(".prompt-row-title").textContent = position === 1 ? `${name} @ ${depth}` : name;
+        row.querySelector(".prompt-token").textContent = `${estimateTokens(row.querySelector(".prompt-content").value)} tok`;
+      }
+
+      function addPresetPrompt(seed = {}) {
+        state.presetDraftPrompts.push(clonePrompt({
+          identifier: `prompt_${Date.now().toString(36)}`,
+          name: "New Prompt",
+          role: "system",
+          content: "",
+          injection_position: 0,
+          injection_depth: 4,
+          injection_order: 100,
+          enabled: true,
+          ...seed
+        }, state.presetDraftPrompts.length));
+        renderPromptManager();
+        const last = $("presetPromptList").querySelector(".prompt-row:last-child");
+        if (last) last.classList.add("open");
+      }
+
+      function renderPromptManager() {
+        const root = $("presetPromptList");
+        root.replaceChildren();
+        const prompts = state.presetDraftPrompts || [];
+        prompts.forEach((prompt, index) => {
+          const row = document.createElement("div");
+          row.className = "prompt-row";
+          row.dataset.index = String(index);
+          row.innerHTML = `
+            <div class="prompt-row-main">
+              <span class="drag-handle">☰</span>
+              <input class="prompt-enabled" type="checkbox" />
+              <input class="prompt-name prompt-mini" />
+              <select class="prompt-role prompt-mini">
+                <option value="system">system</option>
+                <option value="user">user</option>
+                <option value="assistant">assistant</option>
+              </select>
+              <select class="prompt-position prompt-mini">
+                <option value="0">relative</option>
+                <option value="1">in-chat</option>
+              </select>
+              <input class="prompt-depth prompt-mini" type="number" min="0" />
+              <span class="prompt-row-title"></span>
+              <span class="prompt-token"></span>
+            </div>
+            <div class="prompt-row-actions">
+              <button class="secondary icon-button prompt-up" type="button">↑</button>
+              <button class="secondary icon-button prompt-down" type="button">↓</button>
+              <button class="secondary icon-button prompt-edit" type="button">编辑</button>
+              <button class="secondary icon-button prompt-delete" type="button">删</button>
+            </div>
+            <textarea class="prompt-content"></textarea>
+          `;
+          row.querySelector(".prompt-enabled").checked = prompt.enabled !== false;
+          row.querySelector(".prompt-name").value = prompt.name || prompt.identifier || "";
+          row.querySelector(".prompt-role").value = prompt.role || "system";
+          row.querySelector(".prompt-position").value = String(prompt.injection_position ?? 0);
+          row.querySelector(".prompt-depth").value = String(prompt.injection_depth ?? 4);
+          row.querySelector(".prompt-content").value = prompt.content || "";
+          updatePromptRowSummary(row);
+          row.querySelectorAll("input, select, textarea").forEach((control) => {
+            control.oninput = () => updatePromptRowSummary(row);
+            control.onchange = () => updatePromptRowSummary(row);
+          });
+          row.querySelector(".prompt-edit").onclick = () => row.classList.toggle("open");
+          row.querySelector(".prompt-delete").onclick = () => {
+            state.presetDraftPrompts.splice(index, 1);
+            renderPromptManager();
+          };
+          row.querySelector(".prompt-up").onclick = () => {
+            if (index <= 0) return;
+            [state.presetDraftPrompts[index - 1], state.presetDraftPrompts[index]] = [state.presetDraftPrompts[index], state.presetDraftPrompts[index - 1]];
+            renderPromptManager();
+          };
+          row.querySelector(".prompt-down").onclick = () => {
+            if (index >= state.presetDraftPrompts.length - 1) return;
+            [state.presetDraftPrompts[index + 1], state.presetDraftPrompts[index]] = [state.presetDraftPrompts[index], state.presetDraftPrompts[index + 1]];
+            renderPromptManager();
+          };
+          root.appendChild(row);
+        });
+        if (!prompts.length) root.textContent = "还没有提示词。";
+      }
+
+      function collectPresetPrompts() {
+        const prompts = [];
+        $("presetPromptList").querySelectorAll(".prompt-row").forEach((row, index) => {
+          const name = row.querySelector(".prompt-name").value.trim() || `Prompt ${index + 1}`;
+          const identifier = state.presetDraftPrompts[index] && state.presetDraftPrompts[index].identifier
+            ? state.presetDraftPrompts[index].identifier
+            : promptIdentifier(name);
+          prompts.push({
+            identifier,
+            name,
+            role: row.querySelector(".prompt-role").value,
+            content: row.querySelector(".prompt-content").value,
+            system_prompt: row.querySelector(".prompt-role").value === "system",
+            marker: false,
+            injection_position: Number(row.querySelector(".prompt-position").value),
+            injection_depth: Number(row.querySelector(".prompt-depth").value || 4),
+            injection_order: 100,
+            enabled: row.querySelector(".prompt-enabled").checked
+          });
+        });
+        return prompts;
+      }
+
+      function promptOrderFromPrompts(prompts) {
+        return [{ character_id: "global", order: prompts.map((prompt) => ({ identifier: prompt.identifier, enabled: prompt.enabled !== false })) }];
+      }
+
+      function resetPresetForm() {
+        $("presetName").dataset.presetId = "";
+        $("presetName").value = "";
+        state.presetDraftPrompts = defaultPresetPrompts();
+        renderPromptManager();
+        $("presetTableEnabled").checked = true;
+        $("presetDebugMode").checked = false;
+        $("presetMessageTemplate").value = defaultPresetMessageTemplate;
+        $("presetInjectionMode").value = "deep_system";
+        $("presetInjectionDepth").value = "1";
+        $("presetSystemPrompt").value = "";
+        $("presetFillTableTime").value = "chat";
+        $("presetTableReadEnabled").checked = true;
+        $("presetTableEditEnabled").checked = true;
+        $("presetStepByStep").checked = false;
+        $("presetStepByStepUseMainApi").checked = true;
+        $("presetSeparateReadContextLayers").value = "1";
+        $("presetSeparateReadLorebook").checked = false;
+        $("presetStepByStepUserPrompt").value = "";
+        $("presetConfirmBeforeExecution").checked = true;
+        $("presetPostHistoryPrompt").value = "";
+        $("presetContextLength").value = "1000000";
+        $("presetTemperature").value = "0.8";
+        $("presetTopP").value = "0.9";
+        $("presetFrequencyPenalty").value = "0";
+        $("presetPresencePenalty").value = "0";
+        $("presetMaxTokens").value = "1200";
+        $("presetStops").value = "";
+      }
+
+      function fillPresetForm(preset) {
+        if (!preset) return;
+        $("presetName").dataset.presetId = preset.id || "";
+        $("presetName").value = preset.name || "";
+        state.presetDraftPrompts = promptDraftFromPreset(preset);
+        renderPromptManager();
+        $("presetTableEnabled").checked = preset.table_enabled !== false;
+        $("presetDebugMode").checked = preset.debug_mode === true;
+        $("presetMessageTemplate").value = preset.message_template || defaultPresetMessageTemplate;
+        $("presetInjectionMode").value = preset.injection_mode || "deep_system";
+        $("presetInjectionDepth").value = preset.injection_depth ?? 1;
+        $("presetSystemPrompt").value = preset.system_prompt || "";
+        $("presetFillTableTime").value = preset.fill_table_time || "chat";
+        $("presetTableReadEnabled").checked = preset.table_read_enabled !== false;
+        $("presetTableEditEnabled").checked = preset.table_edit_enabled !== false;
+        $("presetStepByStep").checked = preset.step_by_step === true;
+        $("presetStepByStepUseMainApi").checked = preset.step_by_step_use_main_api !== false;
+        $("presetStepByStepUserPrompt").value = preset.step_by_step_user_prompt || "";
+        $("presetSeparateReadContextLayers").value = preset.separate_read_context_layers ?? 1;
+        $("presetSeparateReadLorebook").checked = preset.separate_read_lorebook === true;
+        $("presetConfirmBeforeExecution").checked = preset.confirm_before_execution !== false;
+        $("presetContextLength").value = preset.context_length ?? 1000000;
+        $("presetTemperature").value = preset.temperature ?? 0.8;
+        $("presetTopP").value = preset.top_p ?? 0.9;
+        $("presetFrequencyPenalty").value = preset.frequency_penalty ?? 0;
+        $("presetPresencePenalty").value = preset.presence_penalty ?? 0;
+        $("presetMaxTokens").value = preset.max_tokens ?? 1200;
+        $("presetStops").value = Array.isArray(preset.stop_strings) ? preset.stop_strings.join("\n") : "";
+        $("presetForm").classList.remove("hidden");
+      }
+
+      function showTab(name) {
+        document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
+        document.querySelectorAll(".view").forEach((view) => view.classList.toggle("active", view.id === `tab-${name}`));
+      }
+
+      function renderSelects(binding = {}) {
+        $("presetSelect").replaceChildren(option("未绑定", ""));
+        for (const preset of state.presets) $("presetSelect").appendChild(option(preset.name, preset.id));
+        $("characterSelect").replaceChildren(option("未绑定", ""));
+        for (const character of state.characters) $("characterSelect").appendChild(option(character.name, character.id));
+        $("lorebookSelect").replaceChildren();
+        for (const lorebook of state.lorebooks) $("lorebookSelect").appendChild(option(lorebook.name, lorebook.id));
+        $("presetSelect").value = binding.active_preset_id || "";
+        $("characterSelect").value = binding.active_character_id || "";
+        const activeLorebooks = new Set(binding.active_lorebook_ids || []);
+        for (const item of $("lorebookSelect").options) item.selected = activeLorebooks.has(item.value);
+        $("userDisplayName").value = binding.user_display_name || "";
+        $("authorNote").value = binding.author_note || "";
+      }
+
+      function renderLists() {
+        renderPresetList();
+        renderSimpleList("characterList", state.characters, (character) => ({
+          title: character.name,
+          body: character.description || character.personality || character.scenario || "没有角色说明"
+        }));
+        renderSimpleList("lorebookList", state.lorebooks, (lorebook) => ({
+          title: lorebook.name,
+          body: lorebook.description || "没有说明"
+        }));
+        $("entryLorebookSelect").replaceChildren();
+        for (const lorebook of state.lorebooks) $("entryLorebookSelect").appendChild(option(lorebook.name, lorebook.id));
+        renderLoreEntries();
+      }
+
+      function renderPresetList() {
+        const root = $("presetList");
+        root.replaceChildren();
+        for (const preset of state.presets) {
+          const prompts = Array.isArray(preset.prompts) ? preset.prompts : [];
+          const enabled = (((preset.prompt_order || [])[0] || {}).order || []).filter((item) => item.enabled !== false).length;
+          const item = document.createElement("button");
+          item.className = "item";
+          item.type = "button";
+          item.innerHTML = '<div class="item-head"><div class="item-title"></div><span class="hint"></span></div><div class="item-body"></div>';
+          item.querySelector(".item-title").textContent = preset.name;
+          item.querySelector(".hint").textContent = `${enabled}/${prompts.length || enabled} on`;
+          item.querySelector(".item-body").textContent = [
+            `inject ${preset.injection_mode || "deep_system"} / depth ${preset.injection_depth ?? 1}`,
+            `table ${preset.fill_table_time || "chat"} / read ${preset.table_read_enabled === false ? "off" : "on"} / edit ${preset.table_edit_enabled === false ? "off" : "on"}`,
+            `temp ${preset.temperature} / max ${preset.max_tokens}`,
+            prompts.map((prompt) => `${prompt.enabled === false ? "□" : "✓"} ${prompt.name || prompt.identifier}${prompt.injection_position === 1 ? ` @ ${prompt.injection_depth}` : ""}`).join("\n")
+          ].filter(Boolean).join("\n");
+          item.onclick = () => fillPresetForm(preset);
+          root.appendChild(item);
+        }
+        if (!state.presets.length) root.textContent = "还没有内容。";
+      }
+
+      function renderSimpleList(id, items, mapItem) {
+        const root = $(id);
+        root.replaceChildren();
+        for (const item of items) {
+          const data = mapItem(item);
+          const el = document.createElement("div");
+          el.className = "item";
+          el.innerHTML = '<div class="item-title"></div><div class="item-body"></div>';
+          el.querySelector(".item-title").textContent = data.title;
+          el.querySelector(".item-body").textContent = data.body;
+          root.appendChild(el);
+        }
+        if (!items.length) root.textContent = "还没有内容。";
+      }
+
+      function renderLoreEntries() {
+        const root = $("loreEntryList");
+        root.replaceChildren();
+        const lorebookId = $("entryLorebookSelect").value;
+        const entries = state.loreEntries.filter((entry) => entry.lorebook_id === lorebookId);
+        for (const entry of entries) {
+          const item = document.createElement("div");
+          item.className = "item";
+          item.innerHTML = '<div class="item-head"><div class="item-title"></div><span class="hint"></span></div><div class="item-body"></div>';
+          item.querySelector(".item-title").textContent = entry.title;
+          item.querySelector(".hint").textContent = `priority ${entry.priority}`;
+          item.querySelector(".item-body").textContent = `keys: ${(entry.keys || []).join(", ")}\n${entry.content || ""}`;
+          item.onclick = () => fillLoreEntryForm(entry);
+          root.appendChild(item);
+        }
+        if (!entries.length) root.textContent = lorebookId ? "这个 lorebook 还没有 entry。" : "先创建 lorebook。";
+      }
+
+      function renderPreview(payload) {
+        const preview = payload.promptPreview || {};
+        const presetName = preview.presetName || "未绑定";
+        const characterName = preview.characterName || "未绑定";
+        $("currentChatFact").textContent = payload.chatId || state.chatId;
+        $("currentPresetFact").textContent = presetName;
+        $("currentCharacterFact").textContent = characterName;
+        $("previewChatId").textContent = preview.chatId || state.chatId;
+        $("previewPreset").textContent = presetName;
+        $("previewCharacter").textContent = characterName;
+        const triggered = preview.triggered_lore_entries || [];
+        $("triggeredLoreList").replaceChildren();
+        for (const entry of triggered) {
+          const item = document.createElement("div");
+          item.className = "item";
+          item.innerHTML = '<div class="item-title"></div><div class="item-body"></div>';
+          item.querySelector(".item-title").textContent = `触发：${entry.title}`;
+          item.querySelector(".item-body").textContent = entry.content || "";
+          $("triggeredLoreList").appendChild(item);
+        }
+        if (!triggered.length) $("triggeredLoreList").textContent = "本轮没有触发 lore entry。";
+        $("promptPreview").textContent = preview.prompt || "暂无 prompt。";
+        $("previewUpdated").textContent = new Date().toLocaleString();
+        renderSelects(payload.binding || {});
+      }
+
+      function renderMemoryTables() {
+        const root = $("memoryBoard");
+        root.replaceChildren();
+        const tables = state.memory && Array.isArray(state.memory.tables) ? state.memory.tables : [];
+        if (!tables.length) {
+          root.textContent = "还没有记忆表格。";
+          renderMemoryStats();
+          renderCellHistory();
+          return;
+        }
+        for (const [index, table] of tables.entries()) {
+          root.appendChild(renderMemorySheet(table, index));
+          if (index < tables.length - 1) {
+            const hr = document.createElement("hr");
+            root.appendChild(hr);
+          }
+        }
+        renderMemoryStats();
+        renderCellHistory();
+      }
+
+      function renderMemorySheet(table, tableIndex = 0) {
+        const card = document.createElement("div");
+        card.className = "sheet-panel";
+        card.dataset.tableId = table.id;
+        const filled = (table.rows || []).filter((row) => Object.values(row.cells || {}).some(Boolean)).length;
+        const historyCount = (table.cellHistory || []).length;
+        const deletedCount = (table.deletedRows || []).length;
+        card.innerHTML = `
+          <div class="sheet-head">
+            <div class="sheet-title">
+              <strong></strong>
+              <span class="hint"></span>
+            </div>
+            <div class="sheet-switches">
+              <label><span><input class="sheet-enabled" type="checkbox" /> 启用</span></label>
+              <label><span><input class="sheet-inject" type="checkbox" /> 注入 prompt</span></label>
+              <button class="secondary add-row" type="button">新增行</button>
+            </div>
+          </div>
+          <div class="sheet-wrap"></div>
+          <div class="sheet-footer"></div>
+        `;
+        card.querySelector(".sheet-title strong").textContent = `#${tableIndex} ${table.name}`;
+        card.querySelector(".sheet-title .hint").textContent = `[${table.id}] ${filled} 行 / ${table.description || ""}`;
+        card.querySelector(".sheet-enabled").checked = table.enabled !== false;
+        card.querySelector(".sheet-inject").checked = table.inject !== false;
+        card.querySelector(".sheet-enabled").onchange = (event) => {
+          table.enabled = event.target.checked;
+        };
+        card.querySelector(".sheet-inject").onchange = (event) => {
+          table.inject = event.target.checked;
+        };
+        card.querySelector(".add-row").onclick = () => {
+          addMemoryRow(table.id);
+        };
+        const wrap = card.querySelector(".sheet-wrap");
+        const tableEl = document.createElement("table");
+        tableEl.className = "sheet-table";
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        const rowHead = document.createElement("th");
+        rowHead.className = "row-number";
+        rowHead.textContent = "#";
+        headRow.appendChild(rowHead);
+        for (const column of table.columns || []) {
+          const th = document.createElement("th");
+          th.textContent = column;
+          headRow.appendChild(th);
+        }
+        const actionTh = document.createElement("th");
+        actionTh.className = "row-actions";
+        headRow.appendChild(actionTh);
+        thead.appendChild(headRow);
+        tableEl.appendChild(thead);
+        const tbody = document.createElement("tbody");
+        const rows = table.rows || [];
+        rows.forEach((row, index) => {
+          const tr = document.createElement("tr");
+          tr.dataset.rowId = row.id;
+          if (row.source) tr.classList.add("insert-row");
+          const number = document.createElement("td");
+          number.className = "row-number";
+          number.textContent = String(index + 1);
+          tr.appendChild(number);
+          for (const column of table.columns || []) {
+            const td = document.createElement("td");
+            td.contentEditable = "true";
+            td.dataset.tableId = table.id;
+            td.dataset.rowId = row.id;
+            td.dataset.column = column;
+            td.textContent = row.cells && row.cells[column] ? row.cells[column] : "";
+            if (cellWasChanged(row, column, table)) td.classList.add("update-cell");
+            td.onclick = () => selectMemoryCell(table.id, row.id, column);
+            tr.appendChild(td);
+          }
+          const actionTd = document.createElement("td");
+          actionTd.className = "row-actions";
+          const del = document.createElement("button");
+          del.className = "secondary";
+          del.type = "button";
+          del.textContent = "删除";
+          del.onclick = () => {
+            table.rows = (table.rows || []).filter((item) => item.id !== row.id);
+            state.memoryLogs.unshift({
+              id: `local_delete_${Date.now()}`,
+              created_at: new Date().toISOString(),
+              reason: "local:delete-row",
+              ok: true,
+              deleted: [{ table_id: table.id, row_id: row.id, cells: row.cells }]
+            });
+            renderMemoryTables();
+          };
+          actionTd.appendChild(del);
+          tr.appendChild(actionTd);
+          tbody.appendChild(tr);
+        });
+        for (const deleted of (table.deletedRows || []).slice(0, 8)) {
+          const tr = document.createElement("tr");
+          tr.className = "delete-row-preview";
+          const number = document.createElement("td");
+          number.className = "row-number";
+          number.textContent = "del";
+          tr.appendChild(number);
+          const deletedCells = deleted.row && deleted.row.cells ? deleted.row.cells : {};
+          for (const column of table.columns || []) {
+            const td = document.createElement("td");
+            td.textContent = deletedCells[column] || "";
+            tr.appendChild(td);
+          }
+          const actionTd = document.createElement("td");
+          actionTd.className = "row-actions";
+          actionTd.textContent = deleted.at ? new Date(deleted.at).toLocaleDateString() : "";
+          tr.appendChild(actionTd);
+          tbody.appendChild(tr);
+        }
+        tableEl.appendChild(tbody);
+        wrap.appendChild(tableEl);
+        if (!rows.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty-sheet";
+          empty.textContent = "这张表还没有行。点击“新增行”，或者点“立即整理”。";
+          wrap.appendChild(empty);
+        }
+        const footer = card.querySelector(".sheet-footer");
+        footer.textContent = `单元格历史 ${historyCount} · 删除历史 ${deletedCount} · ${table.required ? "必填表" : "可选表"} · ${table.inject !== false ? "注入 prompt" : "不注入 prompt"}`;
+        return card;
+      }
+
+      function collectMemoryEditor() {
+        const tables = state.memory && Array.isArray(state.memory.tables) ? state.memory.tables : [];
+        for (const table of tables) {
+          const card = document.querySelector(`.sheet-panel[data-table-id="${CSS.escape(table.id)}"]`);
+          if (!card) continue;
+          table.enabled = card.querySelector(".sheet-enabled").checked;
+          table.inject = card.querySelector(".sheet-inject").checked;
+          const rows = [];
+          card.querySelectorAll("tbody tr").forEach((tr) => {
+            const row = (table.rows || []).find((item) => item.id === tr.dataset.rowId) || {
+              id: tr.dataset.rowId,
+              cells: {},
+              created_at: new Date().toISOString(),
+              history: []
+            };
+            const oldCells = { ...(row.cells || {}) };
+            row.cells = {};
+            tr.querySelectorAll("td[data-column]").forEach((cell) => {
+              row.cells[cell.dataset.column] = cell.textContent.trim();
+            });
+            if (JSON.stringify(oldCells) !== JSON.stringify(row.cells)) {
+              row.history = Array.isArray(row.history) ? row.history : [];
+              row.history.push({ at: new Date().toISOString(), cells: oldCells, reason: "manual edit" });
+              row.history = row.history.slice(-20);
+            }
+            row.updated_at = new Date().toISOString();
+            rows.push(row);
+          });
+          table.rows = rows;
+          table.updated_at = new Date().toISOString();
+        }
+      }
+
+      function addMemoryRow(tableId) {
+        const table = (state.memory && state.memory.tables || []).find((item) => item.id === tableId);
+        if (!table) return;
+        table.rows = table.rows || [];
+        table.rows.push({
+          id: `row_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`,
+          cells: Object.fromEntries((table.columns || []).map((column) => [column, ""])),
+          source: "manual",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          history: []
+        });
+        renderMemoryTables();
+      }
+
+      function cellWasChanged(row, column, table) {
+        const cellUid = row.cell_uids && row.cell_uids[column];
+        const cell = (table.cellHistory || []).find((item) => item.uid === cellUid);
+        if (!cell || !cell.coordUid) return false;
+        return (table.cellHistory || []).filter((item) => item.coordUid === cell.coordUid).length > 1;
+      }
+
+      function selectMemoryCell(tableId, rowId, column) {
+        document.querySelectorAll(".selected-cell").forEach((cell) => cell.classList.remove("selected-cell"));
+        const cell = document.querySelector(`td[data-table-id="${CSS.escape(tableId)}"][data-row-id="${CSS.escape(rowId)}"][data-column="${CSS.escape(column)}"]`);
+        if (cell) cell.classList.add("selected-cell");
+        state.selectedMemoryCell = { tableId, rowId, column };
+        renderCellHistory();
+      }
+
+      function renderCellHistory() {
+        const box = $("cellHistoryBox");
+        const selected = state.selectedMemoryCell;
+        if (!selected) {
+          box.textContent = "点击单元格后显示历史。";
+          return;
+        }
+        const table = (state.memory && state.memory.tables || []).find((item) => item.id === selected.tableId);
+        const row = table && (table.rows || []).find((item) => item.id === selected.rowId);
+        if (!table || !row) {
+          box.textContent = "这个单元格已经不存在。";
+          return;
+        }
+        const cellUid = row.cell_uids && row.cell_uids[selected.column];
+        const cell = (table.cellHistory || []).find((item) => item.uid === cellUid);
+        const history = cell && cell.coordUid
+          ? (table.cellHistory || []).filter((item) => item.coordUid === cell.coordUid)
+          : [];
+        const lines = [
+          `${table.name} / ${selected.column}`,
+          `当前：${row.cells && row.cells[selected.column] || ""}`,
+          ""
+        ];
+        if (history.length <= 1) {
+          lines.push("暂无历史。");
+        } else {
+          for (const item of history.slice().reverse()) {
+            lines.push(`${item.created_at || ""} ${item.uid === cellUid ? "当前版本" : "历史版本"}`);
+            lines.push(`${item.data && item.data.value || ""}`);
+            lines.push("");
+          }
+        }
+        box.textContent = lines.join("\n");
+      }
+
+      function renderMemoryStats() {
+        const root = $("memoryStats");
+        root.replaceChildren();
+        const tables = state.memory && Array.isArray(state.memory.tables) ? state.memory.tables : [];
+        const rows = tables.reduce((sum, table) => sum + (table.rows || []).length, 0);
+        const filledCells = tables.reduce((sum, table) => {
+          return sum + (table.rows || []).reduce((rowSum, row) => rowSum + Object.values(row.cells || {}).filter(Boolean).length, 0);
+        }, 0);
+        const historyCells = tables.reduce((sum, table) => sum + (table.cellHistory || []).length, 0);
+        const deletedRows = tables.reduce((sum, table) => sum + (table.deletedRows || []).length, 0);
+        const stats = [
+          ["表格", tables.length],
+          ["行", rows],
+          ["非空单元格", filledCells],
+          ["历史单元格", historyCells],
+          ["删除历史", deletedRows],
+          ["整理日志", state.memoryLogs.length]
+        ];
+        for (const [label, value] of stats) {
+          const item = document.createElement("div");
+          item.className = "mini-stat";
+          item.innerHTML = '<span class="muted"></span><strong></strong>';
+          item.querySelector("span").textContent = label;
+          item.querySelector("strong").textContent = value;
+          root.appendChild(item);
+        }
+      }
+
+      async function loadConfig() {
+        const [presets, characters, lorebooks] = await Promise.all([
+          api("/api/rp/presets"),
+          api("/api/rp/characters"),
+          api("/api/rp/lorebooks")
+        ]);
+        state.presets = presets.presets || [];
+        state.characters = characters.characters || [];
+        state.lorebooks = lorebooks.lorebooks || [];
+        state.loreEntries = [];
+        for (const lorebook of state.lorebooks) {
+          const entries = await api(`/api/rp/lorebooks/${encodeURIComponent(lorebook.id)}/entries`);
+          state.loreEntries.push(...(entries.entries || []));
+        }
+        renderLists();
+      }
+
+      async function loadChats() {
+        const data = await api("/api/chats");
+        const ids = [...new Set((data.chats || [])
+          .filter((chat) => chat.sourceGroup === "telegram_rp" || chat.kind === "telegram_rp")
+          .map((chat) => rpChatId(chat.chatId)))];
+        if (!ids.includes(state.chatId)) ids.unshift(state.chatId);
+        $("chatList").replaceChildren();
+        for (const id of ids) {
+          const button = document.createElement("button");
+          button.className = `chat-item${id === state.chatId ? " active" : ""}`;
+          button.textContent = id;
+          button.onclick = () => selectChat(id);
+          $("chatList").appendChild(button);
+        }
+      }
+
+      async function loadContext() {
+        const payload = await api(`/api/rp/${encodeURIComponent(state.chatId)}/context`);
+        renderPreview(payload);
+      }
+
+      async function loadMemory() {
+        const data = await api(`/api/rp/${encodeURIComponent(state.chatId)}/memory`);
+        state.memory = data.memory;
+        renderMemoryTables();
+        $("memoryStatus").textContent = `整理模型：${data.provider && data.provider.model ? data.provider.model : "未配置"}`;
+      }
+
+      async function loadMemoryLogs() {
+        const data = await api(`/api/rp/${encodeURIComponent(state.chatId)}/memory-logs`);
+        state.memoryLogs = data.logs || [];
+        renderLogList("memoryLogList", state.memoryLogs, (log) => ({
+          status: log.ok ? "成功" : "失败",
+          error: log.error,
+          summary: `applied: ${(log.applied || []).length} / deleted: ${(log.deleted || []).length} / ${log.reason || "-"}`,
+          full: JSON.stringify(log, null, 2)
+        }));
+        renderMemoryStats();
+      }
+
+      async function refreshAll() {
+        await loadConfig();
+        await loadChats();
+        await loadContext();
+        await loadMemory();
+        await loadMemoryLogs();
+      }
+
+      async function selectChat(chatId) {
+        state.chatId = rpChatId(chatId);
+        $("manualChatId").value = state.chatId;
+        await loadChats();
+        await loadContext();
+        await loadMemory();
+        await loadMemoryLogs();
+      }
+
+      async function saveBinding() {
+        const payload = await api(`/api/rp/${encodeURIComponent(state.chatId)}/context`, {
+          method: "POST",
+          body: JSON.stringify({
+            active_preset_id: $("presetSelect").value,
+            active_character_id: $("characterSelect").value,
+            active_lorebook_ids: Array.from($("lorebookSelect").selectedOptions).map((item) => item.value),
+            user_display_name: $("userDisplayName").value,
+            author_note: $("authorNote").value
+          })
+        });
+        renderPreview(payload);
+        showTab("preview");
+      }
+
+      async function createPreset() {
+        const prompts = collectPresetPrompts();
+        const data = await api("/api/rp/presets", {
+          method: "POST",
+          body: JSON.stringify({
+            id: $("presetName").dataset.presetId || "",
+            name: $("presetName").value,
+            system_prompt: $("presetSystemPrompt").value,
+            message_template: $("presetMessageTemplate").value,
+            prompts,
+            prompt_order: promptOrderFromPrompts(prompts),
+            post_history_prompt: $("presetPostHistoryPrompt").value,
+            injection_mode: $("presetInjectionMode").value,
+            injection_depth: $("presetInjectionDepth").value,
+            table_enabled: $("presetTableEnabled").checked,
+            debug_mode: $("presetDebugMode").checked,
+            fill_table_time: $("presetFillTableTime").value,
+            table_read_enabled: $("presetTableReadEnabled").checked,
+            table_edit_enabled: $("presetTableEditEnabled").checked,
+            step_by_step: $("presetStepByStep").checked,
+            step_by_step_use_main_api: $("presetStepByStepUseMainApi").checked,
+            step_by_step_user_prompt: $("presetStepByStepUserPrompt").value,
+            separate_read_context_layers: $("presetSeparateReadContextLayers").value,
+            separate_read_lorebook: $("presetSeparateReadLorebook").checked,
+            confirm_before_execution: $("presetConfirmBeforeExecution").checked,
+            context_length: $("presetContextLength").value,
+            temperature: $("presetTemperature").value,
+            top_p: $("presetTopP").value,
+            frequency_penalty: $("presetFrequencyPenalty").value,
+            presence_penalty: $("presetPresencePenalty").value,
+            max_tokens: $("presetMaxTokens").value,
+            stop_strings: $("presetStops").value
+          })
+        });
+        state.presets = data.presets || [];
+        renderLists();
+        renderSelects({ active_preset_id: data.preset.id, active_character_id: $("characterSelect").value });
+        $("presetForm").classList.add("hidden");
+      }
+
+      function exportPresets() {
+        const blob = new Blob([JSON.stringify({ presets: state.presets || [] }, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "rp-presets.json";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function importedPresetName(source, index = 0) {
+        return source.name || source.title || source.preset_name || source.presetName || source.display_name || `导入 preset ${index + 1}`;
+      }
+
+      function unpackPresetSource(source = {}, index = 0) {
+        if (source && source.data && Array.isArray(source.data.prompts)) {
+          return {
+            ...source,
+            ...source.data,
+            name: importedPresetName(source, index)
+          };
+        }
+        return source || {};
+      }
+
+      function promptOrderGroupsFromSource(source = {}) {
+        const promptOrder = source.prompt_order ?? source.promptOrder;
+        if (Array.isArray(promptOrder)) return promptOrder;
+        if (promptOrder && typeof promptOrder === "object") return [promptOrder];
+        return [];
+      }
+
+      function textFromPromptItem(item) {
+        if (!item || item.enabled === false) return "";
+        const content = item.content || item.prompt || item.text || item.value || "";
+        const name = item.name || item.identifier || item.id || item.role || "prompt";
+        return content ? `[${name}]\n${content}` : "";
+      }
+
+      function promptItemsFromSillyTavern(source) {
+        const prompts = Array.isArray(source.prompts) ? source.prompts : [];
+        if (!prompts.length) return [];
+        const byId = new Map();
+        for (const prompt of prompts) {
+          const keys = [prompt.identifier, prompt.id, prompt.name].filter(Boolean);
+          for (const key of keys) byId.set(String(key), prompt);
+        }
+        const ordered = [];
+        const promptOrder = promptOrderGroupsFromSource(source);
+        for (const group of promptOrder) {
+          const order = Array.isArray(group.order) ? group.order : Array.isArray(group.prompts) ? group.prompts : [];
+          for (const entry of order) {
+            if (entry && entry.enabled === false) continue;
+            const key = String(entry.identifier || entry.id || entry.name || entry);
+            const found = byId.get(key);
+            if (found && !ordered.includes(found)) ordered.push(found);
+          }
+        }
+        for (const prompt of prompts) {
+          if (!ordered.includes(prompt)) ordered.push(prompt);
+        }
+        return ordered;
+      }
+
+      function normalizeImportedPreset(source, index = 0) {
+        source = unpackPresetSource(source, index);
+        const promptParts = [];
+        const directMain = source.message_template || source.messageTemplate || source.system_prompt || source.systemPrompt || source.main_prompt || source.mainPrompt || source.prompt || "";
+        if (directMain) promptParts.push(directMain);
+        for (const key of ["nsfw_prompt", "jailbreak_prompt", "enhance_definitions", "chat_start", "post_history_instructions"]) {
+          if (source[key]) promptParts.push(`[${key}]\n${source[key]}`);
+        }
+        for (const item of promptItemsFromSillyTavern(source)) {
+          const text = textFromPromptItem(item);
+          if (text) promptParts.push(text);
+        }
+        const importedPrompts = Array.isArray(source.prompts) && source.prompts.length
+          ? source.prompts.map((prompt, promptIndex) => ({
+            identifier: prompt.identifier || prompt.id || promptIdentifier(prompt.name || `prompt_${promptIndex + 1}`),
+            name: prompt.name || prompt.identifier || `Prompt ${promptIndex + 1}`,
+            role: prompt.role || "system",
+            content: prompt.content || prompt.prompt || prompt.text || "",
+            system_prompt: prompt.system_prompt !== false,
+            marker: prompt.marker === true,
+            injection_position: Number(prompt.injection_position ?? 0),
+            injection_depth: Number(prompt.injection_depth ?? 4),
+            injection_order: Number(prompt.injection_order ?? 100),
+            enabled: prompt.enabled !== false
+          }))
+          : promptParts.map((content, promptIndex) => ({
+            identifier: promptIndex === 0 ? "main" : `imported_${promptIndex + 1}`,
+            name: promptIndex === 0 ? "Main Prompt" : `Imported Prompt ${promptIndex + 1}`,
+            role: "system",
+            content,
+            system_prompt: true,
+            marker: false,
+            injection_position: 0,
+            injection_depth: 4,
+            injection_order: 100,
+            enabled: true
+          }));
+        const messageTemplate = promptParts.join("\n\n") || defaultPresetMessageTemplate;
+        const postHistory = source.post_history_prompt || source.postHistoryPrompt || source.final_prompt || source.finalPrompt || "";
+        return {
+          name: importedPresetName(source, index),
+          system_prompt: source.system_prompt || source.systemPrompt || "",
+          message_template: messageTemplate.includes("{{tableData}}") ? messageTemplate : `${messageTemplate}\n\n{{tableData}}`,
+          prompts: importedPrompts.length ? importedPrompts : defaultPresetPrompts(),
+          prompt_order: promptOrderGroupsFromSource(source).length ? promptOrderGroupsFromSource(source) : promptOrderFromPrompts(importedPrompts.length ? importedPrompts : defaultPresetPrompts()),
+          post_history_prompt: postHistory,
+          injection_mode: source.injection_mode || source.injectionMode || "deep_system",
+          injection_depth: source.injection_depth ?? source.deep ?? source.injectionDepth ?? 1,
+          table_enabled: source.table_enabled ?? source.tableEnabled ?? true,
+          debug_mode: source.debug_mode ?? source.debugMode ?? false,
+          fill_table_time: source.fill_table_time || source.fillTableTime || "chat",
+          table_read_enabled: source.table_read_enabled ?? source.tableReadEnabled ?? true,
+          table_edit_enabled: source.table_edit_enabled ?? source.tableEditEnabled ?? true,
+          step_by_step: source.step_by_step ?? source.stepByStep ?? false,
+          step_by_step_use_main_api: source.step_by_step_use_main_api ?? source.stepByStepUseMainApi ?? true,
+          step_by_step_user_prompt: source.step_by_step_user_prompt || source.stepByStepUserPrompt || "",
+          separate_read_context_layers: source.separate_read_context_layers ?? source.separateReadContextLayers ?? 1,
+          separate_read_lorebook: source.separate_read_lorebook ?? source.separateReadLorebook ?? false,
+          confirm_before_execution: source.confirm_before_execution ?? source.confirmBeforeExecution ?? true,
+          context_length: source.context_length ?? source.contextLength ?? source.openai_max_context ?? 1000000,
+          temperature: source.temperature ?? source.temp ?? source.temperature_last ?? 0.8,
+          top_p: source.top_p ?? source.topP ?? 0.9,
+          frequency_penalty: source.frequency_penalty ?? source.frequencyPenalty ?? 0,
+          presence_penalty: source.presence_penalty ?? source.presencePenalty ?? 0,
+          max_tokens: source.max_tokens ?? source.maxTokens ?? source.amount_gen ?? source.max_length ?? 1200,
+          stop_strings: source.stop_strings || source.stopStrings || source.stop || source.custom_stopping_strings || []
+        };
+      }
+
+      async function importPresetFile(file) {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const presets = (Array.isArray(parsed) ? parsed : Array.isArray(parsed.presets) ? parsed.presets : [parsed])
+          .map((preset, index) => normalizeImportedPreset(preset, index));
+        if (!presets.length) throw new Error("导入文件里没有 presets。");
+        let latest = null;
+        for (const preset of presets) {
+          latest = await api("/api/rp/presets", {
+            method: "POST",
+            body: JSON.stringify(preset)
+          });
+        }
+        state.presets = latest && latest.presets ? latest.presets : state.presets;
+        renderLists();
+        renderSelects({ active_preset_id: $("presetSelect").value, active_character_id: $("characterSelect").value });
+        if (latest && latest.preset) fillPresetForm(latest.preset);
+      }
+
+      async function createCharacter() {
+        const data = await api("/api/rp/characters", {
+          method: "POST",
+          body: JSON.stringify({
+            name: $("characterName").value,
+            description: $("characterDescription").value,
+            personality: $("characterPersonality").value,
+            scenario: $("characterScenario").value,
+            first_mes: $("characterFirstMes").value,
+            mes_example: $("characterMesExample").value
+          })
+        });
+        state.characters = data.characters || [];
+        renderLists();
+        renderSelects({ active_preset_id: $("presetSelect").value, active_character_id: data.character.id });
+        $("characterForm").classList.add("hidden");
+      }
+
+      async function createLorebook() {
+        const data = await api("/api/rp/lorebooks", {
+          method: "POST",
+          body: JSON.stringify({ name: $("lorebookName").value, description: $("lorebookDescription").value })
+        });
+        state.lorebooks = data.lorebooks || [];
+        $("lorebookForm").classList.add("hidden");
+        await loadConfig();
+      }
+
+      function fillLoreEntryForm(entry) {
+        $("loreEntryForm").classList.remove("hidden");
+        $("loreEntryTitle").dataset.entryId = entry.id;
+        $("loreEntryTitle").value = entry.title || "";
+        $("loreEntryKeys").value = (entry.keys || []).join("\n");
+        $("loreEntryContent").value = entry.content || "";
+        $("loreEntryPriority").value = entry.priority || 100;
+      }
+
+      async function createLoreEntry() {
+        const lorebookId = $("entryLorebookSelect").value;
+        if (!lorebookId) throw new Error("先创建或选择一个 lorebook。");
+        const entryId = $("loreEntryTitle").dataset.entryId || "";
+        const path = entryId
+          ? `/api/rp/lorebooks/${encodeURIComponent(lorebookId)}/entries/${encodeURIComponent(entryId)}`
+          : `/api/rp/lorebooks/${encodeURIComponent(lorebookId)}/entries`;
+        const data = await api(path, {
+          method: entryId ? "PUT" : "POST",
+          body: JSON.stringify({
+            title: $("loreEntryTitle").value,
+            keys: $("loreEntryKeys").value,
+            content: $("loreEntryContent").value,
+            priority: $("loreEntryPriority").value,
+            enabled: true
+          })
+        });
+        state.loreEntries = state.loreEntries.filter((entry) => entry.lorebook_id !== lorebookId);
+        if (data.entries) state.loreEntries.push(...data.entries);
+        if (data.entry && !data.entries) state.loreEntries.push(data.entry);
+        $("loreEntryTitle").dataset.entryId = "";
+        $("loreEntryForm").classList.add("hidden");
+        await loadConfig();
+      }
+
+      async function saveMemory() {
+        collectMemoryEditor();
+        const data = await api(`/api/rp/${encodeURIComponent(state.chatId)}/memory`, {
+          method: "PUT",
+          body: JSON.stringify({ tables: state.memory && state.memory.tables ? state.memory.tables : [] })
+        });
+        state.memory = data.memory;
+        renderMemoryTables();
+        $("memoryStatus").textContent = "已保存。";
+        await loadContext();
+      }
+
+      async function initMemory() {
+        const data = await api(`/api/rp/${encodeURIComponent(state.chatId)}/memory/initialize`, { method: "POST" });
+        state.memory = data.memory;
+        renderMemoryTables();
+        $("memoryStatus").textContent = "已重建默认表。";
+        await loadContext();
+      }
+
+      async function runMemoryUpdate() {
+        const button = $("runMemoryUpdateBtn");
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = "整理中...";
+        $("memoryStatus").textContent = `正在整理记忆... ${new Date().toLocaleTimeString()}`;
+        try {
+          const data = await api(`/api/rp/${encodeURIComponent(state.chatId)}/memory/update`, {
+            method: "POST",
+            body: JSON.stringify({ reason: "manual:rp-studio" })
+          });
+          state.memory = data.memory;
+          renderMemoryTables();
+          await loadMemoryLogs();
+          await loadContext();
+          $("memoryStatus").textContent = data.error ? `整理失败：${data.error}` : `整理完成，已应用 ${data.applied.length} 项。`;
+        } catch (error) {
+          $("memoryStatus").textContent = `整理失败：${error && error.message ? error.message : String(error)}`;
+          throw error;
+        } finally {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      }
+
+      async function rebuildMemory() {
+        const button = $("rebuildMemoryBtn");
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = "重建中...";
+        $("memoryStatus").textContent = `正在完整重建表格... ${new Date().toLocaleTimeString()}`;
+        try {
+          const data = await api(`/api/rp/${encodeURIComponent(state.chatId)}/memory/rebuild`, {
+            method: "POST",
+            body: JSON.stringify({ reason: "manual:rp-studio-rebuild" })
+          });
+          state.memory = data.memory;
+          renderMemoryTables();
+          await loadMemoryLogs();
+          await loadContext();
+          $("memoryStatus").textContent = data.error ? `完整重建失败：${data.error}` : `完整重建完成，已应用 ${data.applied.length} 项。`;
+        } catch (error) {
+          $("memoryStatus").textContent = `完整重建失败：${error && error.message ? error.message : String(error)}`;
+          throw error;
+        } finally {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      }
+
+      function exportMemory() {
+        collectMemoryEditor();
+        const blob = new Blob([JSON.stringify(state.memory || {}, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${state.chatId}-memory-tables.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      async function importMemoryFile(file) {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const tables = Array.isArray(parsed.tables) ? parsed.tables : parsed.memory && Array.isArray(parsed.memory.tables) ? parsed.memory.tables : [];
+        if (!tables.length) throw new Error("导入文件里没有 tables。");
+        const data = await api(`/api/rp/${encodeURIComponent(state.chatId)}/memory`, {
+          method: "PUT",
+          body: JSON.stringify({ tables })
+        });
+        state.memory = data.memory;
+        renderMemoryTables();
+        await loadContext();
+        $("memoryStatus").textContent = "已导入。";
+      }
+
+      function tablePresetSettingsFromImport(parsed) {
+        if (parsed && parsed.tableBaseSetting && typeof parsed.tableBaseSetting === "object") return parsed.tableBaseSetting;
+        if (parsed && parsed.muyoo_dataTable && typeof parsed.muyoo_dataTable === "object") return parsed.muyoo_dataTable;
+        if (parsed && (Array.isArray(parsed.tableStructure) || parsed.message_template || parsed.refresh_user_message_template)) return parsed;
+        return null;
+      }
+
+      function memoryTableIdFromStructure(table, index) {
+        const name = String(table && table.tableName || "").trim();
+        const known = {
+          0: "space_time",
+          1: "character_traits",
+          2: "relationship",
+          3: "tasks",
+          4: "important_events",
+          5: "important_items"
+        };
+        if (known[index]) return known[index];
+        return `imported_${String(name || index).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/gi, "_").replace(/^_+|_+$/g, "") || index}`;
+      }
+
+      function memoryTablesFromTableStructure(tableStructure) {
+        return (Array.isArray(tableStructure) ? tableStructure : []).map((table, index) => {
+          const columns = Array.isArray(table.columns) ? table.columns.map((item) => String(item || "").trim()).filter(Boolean) : [];
+          return {
+            id: memoryTableIdFromStructure(table, Number.isInteger(table.tableIndex) ? table.tableIndex : index),
+            template_id: memoryTableIdFromStructure(table, Number.isInteger(table.tableIndex) ? table.tableIndex : index),
+            name: table.tableName || table.name || `表格 ${index + 1}`,
+            description: table.note || table.description || "",
+            columns,
+            required: table.Required ?? table.required ?? true,
+            asStatus: table.asStatus ?? true,
+            toChat: table.toChat ?? true,
+            note: table.note || "",
+            initNode: table.initNode || "",
+            insertNode: table.insertNode || "",
+            updateNode: table.updateNode || "",
+            deleteNode: table.deleteNode || "",
+            enabled: table.enable ?? table.enabled ?? true,
+            inject: table.toChat ?? table.inject ?? true,
+            rows: []
+          };
+        }).filter((table) => table.columns.length);
+      }
+
+      function tablePresetExportPayload() {
+        collectMemoryEditor();
+        const tables = state.memory && Array.isArray(state.memory.tables) ? state.memory.tables : [];
+        const activePreset = state.presets.find((preset) => preset.id === $("presetSelect").value) || state.presets[0] || {};
+        return {
+          isExtensionAble: true,
+          isAiReadTable: activePreset.table_read_enabled !== false,
+          isAiWriteTable: activePreset.table_edit_enabled !== false,
+          injection_mode: activePreset.injection_mode || "deep_system",
+          deep: activePreset.injection_depth ?? 1,
+          message_template: activePreset.message_template || defaultPresetMessageTemplate,
+          step_by_step: activePreset.step_by_step || false,
+          step_by_step_use_main_api: activePreset.step_by_step_use_main_api !== false,
+          step_by_step_user_prompt: activePreset.step_by_step_user_prompt || "",
+          separateReadContextLayers: activePreset.separate_read_context_layers || 1,
+          separateReadLorebook: activePreset.separate_read_lorebook || false,
+          confirm_before_execution: activePreset.confirm_before_execution !== false,
+          openai_max_context: activePreset.context_length || 1000000,
+          custom_temperature: activePreset.temperature ?? 0.8,
+          custom_top_p: activePreset.top_p ?? 0.9,
+          frequency_penalty: activePreset.frequency_penalty ?? 0,
+          presence_penalty: activePreset.presence_penalty ?? 0,
+          custom_max_tokens: activePreset.max_tokens ?? 1200,
+          tableStructure: tables.map((table, index) => ({
+            tableName: table.name,
+            tableIndex: index,
+            columns: table.columns || [],
+            enable: table.enabled !== false,
+            Required: table.required !== false,
+            asStatus: table.asStatus !== false,
+            toChat: table.toChat !== false,
+            note: table.note || table.description || "",
+            initNode: table.initNode || "",
+            insertNode: table.insertNode || "",
+            updateNode: table.updateNode || "",
+            deleteNode: table.deleteNode || ""
+          }))
+        };
+      }
+
+      function exportTablePreset() {
+        const blob = new Blob([JSON.stringify(tablePresetExportPayload(), null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${state.chatId}-table-preset.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      async function importTablePresetFile(file) {
+        const parsed = JSON.parse(await file.text());
+        const settings = tablePresetSettingsFromImport(parsed);
+        if (!settings) throw new Error("这不是记忆增强表格的表格预设设置。");
+        const tables = memoryTablesFromTableStructure(settings.tableStructure);
+        if (!tables.length && !settings.message_template) throw new Error("导入文件里没有 tableStructure 或 message_template。");
+        const shouldReplace = !tables.length || confirm("导入表格预设会用新 tableStructure 覆盖当前记忆表格结构，旧表格内容不会自动迁移。继续吗？");
+        if (!shouldReplace) return;
+        if (tables.length) {
+          const memoryData = await api(`/api/rp/${encodeURIComponent(state.chatId)}/memory`, {
+            method: "PUT",
+            body: JSON.stringify({ tables })
+          });
+          state.memory = memoryData.memory;
+          renderMemoryTables();
+        }
+        if (settings.message_template || settings.refresh_user_message_template || settings.step_by_step_user_prompt) {
+          const presetData = await api("/api/rp/presets", {
+            method: "POST",
+            body: JSON.stringify({
+              name: file.name.replace(/\.json$/i, "") || "导入表格预设",
+              message_template: settings.message_template || defaultPresetMessageTemplate,
+              prompts: [
+                {
+                  identifier: "main",
+                  name: "表格预设主提示词",
+                  role: "system",
+                  content: settings.message_template || defaultPresetMessageTemplate,
+                  system_prompt: true,
+                  marker: false,
+                  injection_position: 0,
+                  injection_depth: settings.deep ?? 1,
+                  injection_order: 100,
+                  enabled: true
+                },
+                {
+                  identifier: "memoryTable",
+                  name: "记忆增强表格",
+                  role: "system",
+                  content: "{{tableData}}",
+                  system_prompt: true,
+                  marker: false,
+                  injection_position: 1,
+                  injection_depth: settings.deep ?? 1,
+                  injection_order: 100,
+                  enabled: true
+                }
+              ],
+              prompt_order: [{ character_id: "global", order: [{ identifier: "main", enabled: true }, { identifier: "memoryTable", enabled: true }] }],
+              system_prompt: "",
+              injection_mode: settings.injection_mode || "deep_system",
+              injection_depth: settings.deep ?? 1,
+              table_enabled: settings.isExtensionAble ?? true,
+              table_read_enabled: settings.isAiReadTable ?? true,
+              table_edit_enabled: settings.isAiWriteTable ?? true,
+              fill_table_time: settings.step_by_step ? "after" : "chat",
+              step_by_step: settings.step_by_step ?? false,
+              step_by_step_use_main_api: settings.step_by_step_use_main_api ?? true,
+              step_by_step_user_prompt: settings.step_by_step_user_prompt || "",
+              separate_read_context_layers: settings.separateReadContextLayers || 1,
+              separate_read_lorebook: settings.separateReadLorebook || false,
+              confirm_before_execution: settings.confirm_before_execution ?? true,
+              context_length: settings.openai_max_context ?? settings.context_length ?? 1000000,
+              temperature: settings.custom_temperature ?? 0.8,
+              top_p: settings.custom_top_p ?? settings.top_p ?? 0.9,
+              frequency_penalty: settings.frequency_penalty ?? 0,
+              presence_penalty: settings.presence_penalty ?? 0,
+              max_tokens: settings.custom_max_tokens ?? 1200,
+              stop_strings: []
+            })
+          });
+          state.presets = presetData.presets || state.presets;
+          renderLists();
+          renderSelects({ active_preset_id: presetData.preset.id, active_character_id: $("characterSelect").value });
+          await api(`/api/rp/${encodeURIComponent(state.chatId)}/context`, {
+            method: "POST",
+            body: JSON.stringify({
+              active_preset_id: presetData.preset.id,
+              active_character_id: $("characterSelect").value,
+              active_lorebook_ids: Array.from($("lorebookSelect").selectedOptions).map((item) => item.value),
+              user_display_name: $("userDisplayName").value,
+              author_note: $("authorNote").value
+            })
+          });
+        }
+        await loadContext();
+        $("memoryStatus").textContent = "已按记忆增强表格方式导入表格预设。";
+      }
+
+      function renderLogList(id, logs, project) {
+        const root = $(id);
+        root.replaceChildren();
+        for (const log of logs) {
+          const data = project(log);
+          const item = document.createElement("details");
+          item.className = "log-detail";
+          item.innerHTML = `
+            <summary>
+              <div class="log-summary">
+                <span class="hint"></span>
+                <span class="log-status"></span>
+                <span class="reply-summary"></span>
+                <span class="error-summary"></span>
+                <button class="secondary" type="button">展开</button>
+              </div>
+            </summary>
+            <div class="log-full"></div>
+          `;
+          item.querySelector(".hint").textContent = log.created_at || "";
+          item.querySelector(".log-status").textContent = data.status;
+          item.querySelector(".log-status").classList.toggle("error", Boolean(data.error));
+          item.querySelector(".reply-summary").textContent = data.summary || "";
+          item.querySelector(".error-summary").textContent = data.error ? `error: ${shortText(data.error)}` : "";
+          item.querySelector(".log-full").textContent = data.full || "";
+          item.querySelector("button").onclick = (event) => {
+            event.preventDefault();
+            item.open = !item.open;
+            item.querySelector("button").textContent = item.open ? "收起" : "展开";
+          };
+          root.appendChild(item);
+        }
+        if (!logs.length) root.textContent = "还没有日志。";
+      }
+
+      async function loadLogs() {
+        const data = await api(`/api/rp/${encodeURIComponent(state.chatId)}/generation-logs`);
+        state.logs = data.logs || [];
+        renderLogList("generationLogList", state.logs, (log) => ({
+          status: log.error ? "失败" : "成功",
+          error: log.error,
+          summary: `reply: ${shortText(log.final_reply)}`,
+          full: [`prompt:\n${log.prompt_preview || log.final_prompt || ""}`, `reply:\n${log.final_reply || ""}`, log.error ? `error:\n${log.error}` : ""].filter(Boolean).join("\n\n")
+        }));
+      }
+
+      async function loadArchives() {
+        const data = await api("/api/rp/archives");
+        state.archives = data.archives || [];
+        const root = $("archiveList");
+        root.replaceChildren();
+        for (const archive of state.archives) {
+          const item = document.createElement("div");
+          item.className = "item";
+          item.innerHTML = '<div class="item-head"><div class="item-title"></div><button class="secondary">恢复</button></div><div class="item-body"></div>';
+          item.querySelector(".item-title").textContent = archive.display_name || archive.chat_id;
+          item.querySelector(".item-body").textContent = `${archive.chat_id} / ${archive.message_count} messages / ${archive.archived_at || ""}`;
+          item.querySelector("button").onclick = async () => {
+            const restored = await api(`/api/rp/archives/${encodeURIComponent(archive.id)}/restore`, { method: "POST" });
+            await selectChat(restored.newChatId);
+            showTab("session");
+          };
+          root.appendChild(item);
+        }
+        if (!state.archives.length) root.textContent = "还没有 RP archive。";
+      }
+
+      async function archiveCurrent() {
+        await api(`/api/rp/${encodeURIComponent(state.chatId)}/archive`, { method: "POST" });
+        await loadArchives();
+        showTab("archives");
+      }
+
+      async function testGenerate() {
+        const button = $("testGenerateBtn");
+        button.disabled = true;
+        $("testResult").textContent = "正在生成...";
+        try {
+          const result = await api("/api/rp/generate", {
+            method: "POST",
+            body: JSON.stringify({ chat_id: state.chatId, user_input: $("testUserInput").value })
+          });
+          $("testResult").textContent = [
+            result.error ? `error:\n${result.error}` : "",
+            `reply:\n${result.reply || ""}`,
+            result.memoryUpdate ? `memory:\n${JSON.stringify(result.memoryUpdate, null, 2)}` : ""
+          ].filter(Boolean).join("\n\n");
+          await loadLogs();
+          await loadMemoryLogs();
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function copyPrompt() {
+        const text = $("promptPreview").textContent || "";
+        if (!text.trim()) return;
+        await navigator.clipboard.writeText(text);
+        $("copyPromptStatus").textContent = "已复制 prompt。";
+        setTimeout(() => { $("copyPromptStatus").textContent = ""; }, 1800);
+      }
+
+      function showError(error) {
+        $("leftStatus").textContent = error && error.message ? error.message : String(error);
+      }
+
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.onclick = () => showTab(tab.dataset.tab);
+      });
+      $("refreshBtn").onclick = () => refreshAll().catch(showError);
+      $("useManualBtn").onclick = () => selectChat($("manualChatId").value).catch(showError);
+      $("saveBindingBtn").onclick = () => saveBinding().catch(showError);
+      $("togglePresetFormBtn").onclick = () => {
+        if ($("presetForm").classList.contains("hidden")) resetPresetForm();
+        $("presetForm").classList.toggle("hidden");
+      };
+      $("toggleCharacterFormBtn").onclick = () => $("characterForm").classList.toggle("hidden");
+      $("toggleLorebookFormBtn").onclick = () => $("lorebookForm").classList.toggle("hidden");
+      $("toggleLoreEntryFormBtn").onclick = () => $("loreEntryForm").classList.toggle("hidden");
+      $("createPresetBtn").onclick = () => createPreset().catch(showError);
+      $("presetResetBtn").onclick = () => resetPresetForm();
+      $("addPromptBlockBtn").onclick = () => addPresetPrompt();
+      $("presetExportBtn").onclick = () => exportPresets();
+      $("presetImportBtn").onclick = () => $("presetImportFile").click();
+      $("presetImportFile").onchange = (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (file) importPresetFile(file).catch(showError);
+        event.target.value = "";
+      };
+      $("createCharacterBtn").onclick = () => createCharacter().catch(showError);
+      $("createLorebookBtn").onclick = () => createLorebook().catch(showError);
+      $("createLoreEntryBtn").onclick = () => createLoreEntry().catch(showError);
+      $("entryLorebookSelect").onchange = renderLoreEntries;
+      $("previewBtn").onclick = () => loadContext().catch(showError);
+      $("copyPromptBtn").onclick = () => copyPrompt().catch(showError);
+      $("refreshLogsBtn").onclick = () => loadLogs().catch(showError);
+      $("refreshArchivesBtn").onclick = () => loadArchives().catch(showError);
+      $("archiveCurrentBtn").onclick = () => archiveCurrent().catch(showError);
+      $("testGenerateBtn").onclick = () => testGenerate().catch(showError);
+      $("openLogsBtn").onclick = () => { showTab("logs"); loadLogs().catch(showError); };
+      $("refreshMemoryBtn").onclick = () => loadMemory().catch(showError);
+      $("refreshMemoryLogsBtn").onclick = () => loadMemoryLogs().catch(showError);
+      $("initMemoryBtn").onclick = () => initMemory().catch(showError);
+      $("saveMemoryBtn").onclick = () => saveMemory().catch(showError);
+      $("runMemoryUpdateBtn").onclick = () => runMemoryUpdate().catch(showError);
+      $("rebuildMemoryBtn").onclick = () => rebuildMemory().catch(showError);
+      $("exportMemoryBtn").onclick = () => exportMemory();
+      $("importMemoryBtn").onclick = () => $("memoryImportFile").click();
+      $("memoryImportFile").onchange = (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (file) importMemoryFile(file).catch(showError);
+        event.target.value = "";
+      };
+      $("exportTablePresetBtn").onclick = () => exportTablePreset();
+      $("importTablePresetBtn").onclick = () => $("tablePresetImportFile").click();
+      $("tablePresetImportFile").onchange = (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (file) importTablePresetFile(file).catch(showError);
+        event.target.value = "";
+      };
+
+      refreshAll().catch(showError);
+    </script>
+  </body>
+</html>

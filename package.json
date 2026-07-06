@@ -1,0 +1,17 @@
+{
+  "name": "qi-codex-telegram-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Telegram bridge for Qi and Codex.",
+  "scripts": {
+    "check": "node --check telegram-codex-bridge.cjs && node --check codex-sdk-session.cjs"
+  },
+  "dependencies": {
+    "@openai/codex": "0.133.0",
+    "@openai/codex-sdk": "^0.116.0",
+    "@openai/codex-win32-x64": "npm:@openai/codex@0.133.0-win32-x64"
+  },
+  "overrides": {
+    "@openai/codex": "0.133.0"
+  }
+}

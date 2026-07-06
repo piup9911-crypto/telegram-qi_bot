@@ -1,0 +1,16 @@
+# Local bridge secrets and runtime state
+bridge.env
+bridge-home/
+bridge-state/
+bridge-workspace/
+generated/
+memory-docs/
+st-bridge-home/
+st-bridge-state/
+st-bridge-workspace/
+tmp-*/
+*.log
+
+# Local tunnel binaries should be installed separately when needed.
+cloudflared*.exe
+

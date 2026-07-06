@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LMC 记忆管理器</title>
+  <style>
+    :root { color-scheme: light; --bg:#f4f1ea; --card:#fffdf8; --ink:#28251f; --muted:#766f64; --line:#ddd5c8; --accent:#725a38; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 system-ui,"Microsoft YaHei",sans-serif; }
+    main { width:min(1180px,calc(100% - 28px)); margin:28px auto 60px; }
+    header,.section { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; }
+    header { display:flex; justify-content:space-between; gap:18px; align-items:center; margin-bottom:18px; }
+    h1,h2 { margin:0; }
+    header p,.empty,.meta { color:var(--muted); }
+    nav { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 18px; }
+    button { border:1px solid var(--line); border-radius:999px; background:var(--card); color:var(--ink); padding:9px 14px; cursor:pointer; }
+    button.active,button.primary { background:var(--accent); border-color:var(--accent); color:white; }
+    button.danger { color:#9d2f24; }
+    .section-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
+    article { border:1px solid var(--line); border-radius:14px; padding:14px; background:white; }
+    input,textarea { width:100%; border:1px solid transparent; border-radius:10px; background:transparent; color:inherit; font:inherit; padding:8px; }
+    input { font-weight:700; }
+    textarea { min-height:130px; resize:vertical; }
+    article.editing input,article.editing textarea { border-color:var(--line); background:#fffdf8; }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .hidden { display:none !important; }
+    #status { min-height:24px; color:var(--muted); }
+    @media (max-width:640px) { header { align-items:flex-start; flex-direction:column; } .cards { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>LMC 统一记忆管理</h1><p>long_term 永久召回；LMC 记录编辑只更新正文并重建向量。</p></div>
+    <button id="reload">重新读取</button>
+  </header>
+  <nav id="tabs"></nav>
+  <section class="section">
+    <div class="section-head"><h2 id="title"></h2><span id="count"></span></div>
+    <div id="status"></div>
+    <div class="cards" id="cards"></div>
+  </section>
+</main>
+<script>
+  const SECTIONS = [
+    ["longTerm","长期记忆","LMC · kind=long_term"],
+    ["privateMemory","私密记忆","Core · 不参与召回"],
+    ["trash","垃圾箱","Core · 180 天保留"],
+    ["lmcStable","LMC 稳定记忆","temporalType=stable"],
+    ["lmcTemporary","LMC 临时记忆","temporalType=temporary"],
+    ["lmcEvent","LMC 事件","event chunks / temporalType=event"],
+    ["lmcSearchOnly","LMC 搜索记忆","temporalType=search_only"]
+  ];
+  let data={sections:{}}; let active="longTerm";
+  const $=(id)=>document.getElementById(id);
+  const escapeHtml=(v)=>String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const meta=()=>SECTIONS.find(([id])=>id===active)||SECTIONS[0];
+  async function request(url,options={}) { const res=await fetch(url,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}}); const body=await res.json().catch(()=>({})); if(!res.ok) throw new Error(body.error||`HTTP ${res.status}`); return body; }
+  function renderTabs(){ $("tabs").innerHTML=SECTIONS.map(([id,label])=>`<button class="${id===active?"active":""}" data-tab="${id}">${label} (${(data.sections[id]||[]).length})</button>`).join(""); }
+  function render(){ renderTabs(); const [,label,note]=meta(); $("title").textContent=label; $("count").textContent=note; const records=data.sections[active]||[]; $("cards").innerHTML=records.length?records.map(card).join(""):`<div class="empty">当前分区为空。</div>`; }
+  function card(record){ const lmc=record.lmc===true; const canTrash=!lmc&&record.section!=="trash"; const canDelete=!lmc&&record.section==="trash"; return `<article data-id="${escapeHtml(record.id)}" data-lmc="${lmc}"><input value="${escapeHtml(record.title)}" ${lmc?"disabled":"readonly"}><textarea readonly>${escapeHtml(record.content)}</textarea><div class="meta">${escapeHtml(record.kind||record.section||"")} · ${escapeHtml(record.updatedAt||"")}</div><div class="actions"><button data-action="edit">编辑正文</button><button class="primary hidden" data-action="save">保存</button><button class="hidden" data-action="cancel">取消</button>${canTrash?'<button class="danger" data-action="trash">移到垃圾箱</button>':""}${canDelete?'<button class="danger" data-action="delete">永久删除</button>':""}</div></article>`; }
+  async function load(){ $("status").textContent="读取中…"; data=await request("/api/memory"); render(); $("status").textContent="已读取最新数据。"; }
+  function setEditing(card,on){ card.classList.toggle("editing",on); card.querySelector("textarea").readOnly=!on; if(card.dataset.lmc!=="true") card.querySelector("input").readOnly=!on; card.querySelector('[data-action="edit"]').classList.toggle("hidden",on); card.querySelector('[data-action="save"]').classList.toggle("hidden",!on); card.querySelector('[data-action="cancel"]').classList.toggle("hidden",!on); }
+  $("tabs").onclick=(e)=>{ const b=e.target.closest("[data-tab]"); if(!b)return; active=b.dataset.tab; render(); };
+  $("reload").onclick=()=>load().catch(showError);
+  $("cards").onclick=async(e)=>{ const b=e.target.closest("[data-action]"); if(!b)return; const card=b.closest("article"); const action=b.dataset.action; try { if(action==="edit"){ card.dataset.title=card.querySelector("input").value; card.dataset.content=card.querySelector("textarea").value; setEditing(card,true); return; } if(action==="cancel"){ card.querySelector("input").value=card.dataset.title; card.querySelector("textarea").value=card.dataset.content; setEditing(card,false); return; } const id=encodeURIComponent(card.dataset.id); if(action==="save") await request(`/api/memory/${id}`,{method:"PATCH",body:JSON.stringify({title:card.querySelector("input").value,content:card.querySelector("textarea").value})}); if(action==="trash") await request(`/api/memory/${id}/trash`,{method:"POST"}); if(action==="delete"&&confirm("永久删除这条垃圾箱记录？")) await request(`/api/memory/${id}`,{method:"DELETE"}); await load(); } catch(error){ showError(error); } };
+  function showError(error){ $("status").textContent=error.message||String(error); }
+  load().catch(showError);
+</script>
+</body>
+</html>

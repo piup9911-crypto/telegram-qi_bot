@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# Local secrets. Keep bridge.env.example tracked as the safe template.
+.env
+.env.*
+*.env
+*.env.bak*
+bridge.env
+bridge.env.bak*
+codex-bridge.env
+codex-bridge.env.bak*
+!bridge.env.example
+!.env.example
+
+# Runtime state, logs, chat records, and local memory data.
+bridge-home/
+bridge-state/
+bridge-workspace/
+bridge-workspace-rp/
+codex-bridge-state/
+codex-bridge-workspace/
+generated/
+memory-docs/
+st-bridge-home/
+st-bridge-state/
+st-bridge-workspace/
+memory-api-output.json
+
+# RP local runtime data. Keep RP source files under rp-runtime/ tracked.
+rp-config/*.json
+
+# Large third-party/reference checkouts. Add these back as submodules or docs links if needed.
+external/
+
+# Temporary browser/profile/test output.
+tmp-*/
+tmp-*
+*.tmp
+*.temp
+
+# Logs and process files.
+*.log
+*.out
+*.err
+*.pid
+*.lock.json
+
+# Local backup snapshots created during repairs.
+*.bak
+*.bak-*
+*.backup-*
+*.bad-*
+*.delete-*-backup-*
+*.node-migration-backup-*
+*.path-isolation-backup-*
+
+# Local tunnel/runtime binaries should be installed separately.
+cloudflared*.exe
