@@ -22,9 +22,32 @@ Obsidian 式人类视图
 
 第一层分类不是硬墙，而是检索入口。系统应该优先去最可能相关的 domain / topic 查找，如果找不到，要能扩大范围，最后全局检索。
 
-## 2. 类比理解
+## 2. 直观图版
+
+这一部分先用生活里的例子解释整体结构，方便之后继续讨论时对齐直觉。
+
+### 2.1 家 / 房间 / 柜子
 
 可以把整个记忆库想成一间屋子：
+
+```mermaid
+flowchart TD
+  H["总记忆库 / 家"] --> P["项目房间"]
+  H --> L["学习房间"]
+  H --> M["健康房间"]
+  H --> F["理财房间"]
+  H --> R["关系房间"]
+  H --> T["工具设备房间"]
+
+  P --> P1["telegram-qi_bot 柜子"]
+  P --> P2["阿祈记忆系统 柜子"]
+  M --> M1["睡眠 抽屉"]
+  M --> M2["用药 抽屉"]
+
+  P1 -. "互相关联" .- P2
+```
+
+对应关系：
 
 ```text
 总记忆库 = 家
@@ -38,8 +61,163 @@ local graph = 柜子里物品之间的连线
 全局检索 = 找不到时翻整间屋子
 ```
 
-Obsidian 适合作为人类视图：文件夹、页面、标签、双链、反向链接、时间线。  
-机器内部不应该只依赖 Obsidian 文件夹，而要给每条记忆附加结构化字段。
+### 2.2 Obsidian 式人类视图
+
+Obsidian 更像给人看的笔记墙：有页面、标签、双链、反向链接和时间线。
+
+```mermaid
+flowchart LR
+  A["项目房间"] --> B["telegram-qi_bot 笔记"]
+  B --> C["LMC 记忆系统笔记"]
+  C --> D["Notion 2026-07-01"]
+  C --> E["GitHub 文件"]
+  B -. "双链" .- D
+  E -. "反向链接" .- C
+```
+
+Obsidian 适合：
+
+```text
+这个东西在哪里？
+它跟哪些笔记有关？
+怎么手动整理、删除、改分类？
+```
+
+它是给人看的地图，不承担全部机器检索。
+
+### 2.3 第一层分区 + 第二层 topic 图
+
+第一层像树，用来快速进入房间；第二层开始更像图，用来表达 topic 之间的关系。
+
+```mermaid
+flowchart TD
+  ROOT["Memory Vault 总记忆库"]
+
+  ROOT --> P["projects 项目"]
+  ROOT --> L["learning 学习"]
+  ROOT --> H["health 健康"]
+  ROOT --> F["finance 理财"]
+  ROOT --> R["relationships 关系"]
+  ROOT --> T["tools 工具设备"]
+
+  P --> P1["telegram-qi_bot"]
+  P --> P2["阿祈记忆系统"]
+  P --> P3["GitHub / Vercel / 部署"]
+
+  P2 --> M1["LMC 参考"]
+  P2 --> M2["新记忆系统设计"]
+  P2 --> M3["Notion 2026-07-01"]
+  P2 --> M4["文件关系 / 任务线"]
+
+  M1 -. "相关" .- M2
+  M2 -. "来源" .- M3
+  M2 -. "实现相关" .- M4
+```
+
+每个 topic 里面再放具体结构：
+
+```text
+阿祈记忆系统 topic
+├─ memories          具体记忆
+├─ timeline          时间线
+├─ evidence          来源证据
+├─ tags              关键词
+├─ links             关联 topic
+├─ project_graph     项目/文件关系，偏 Cognee
+└─ fact_graph        长期事实变化，偏 Zep/Graphiti
+```
+
+### 2.4 topic 内部的小盒子
+
+```mermaid
+flowchart TD
+  D["第一层 domain<br/>项目 / 学习 / 健康..."] --> T["第二层 topic<br/>telegram-qi_bot / 睡眠 / 理财计划..."]
+  T --> B["topic 内部的小盒子"]
+
+  B --> M["memories<br/>记忆卡片"]
+  B --> TL["timeline<br/>时间线"]
+  B --> E["evidence<br/>来源"]
+  B --> K["keywords/vector<br/>关键词和向量"]
+  B --> G["local graph<br/>小范围关系图"]
+```
+
+### 2.5 检索流程图
+
+不是每次都按同一条路径检索，而是先判断用户输入的检索意图。
+
+```mermaid
+flowchart TD
+  Q["用户输入"] --> I["检索意图判断"]
+
+  I -->|"普通聊天"| N["不查长期记忆"]
+  I -->|"刚才 / 这次"| S["查当前会话"]
+  I -->|"某天 / 昨天 / 上周"| T["查 timeline / session summaries"]
+  I -->|"某项目 / 文件 / 任务"| P["项目 domain soft routing"]
+  I -->|"某人 / 偏好 / 长期事实"| L["长期事实 domain soft routing"]
+  I -->|"不确定但像回忆"| G["轻量全局检索"]
+
+  T --> T2["按日期拿到当天会话 / 事件"]
+  T2 --> T3["再抽取相关 topic"]
+
+  P --> P2["topic 内 keyword + vector + timeline"]
+  L --> L2["facts + timeline + evidence"]
+
+  T3 --> R["返回结果"]
+  P2 --> R
+  L2 --> R
+  G --> R
+```
+
+### 2.6 软路由图
+
+第一层分类是导航，不是牢笼。系统可以优先查最可能的 1-2 个 domain / topic，结果不够时再全局兜底。
+
+```mermaid
+flowchart TD
+  Q["用户问题"] --> A["判断可能的大类"]
+  A --> B["Top 1: 项目"]
+  A --> C["Top 2: 工具设备"]
+  A --> D["当前会话活跃 topic"]
+
+  B --> S["局部混合检索"]
+  C --> S
+  D --> S
+
+  S --> E{"结果够好吗？"}
+  E -->|"够"| R["返回答案 + 来源 + 时间"]
+  E -->|"不够"| G["全局检索兜底"]
+  G --> R
+```
+
+### 2.7 项目记忆 vs 长期事实记忆
+
+项目类记忆更像 Cognee：关心文件、任务、模块、修改、依赖。
+
+```mermaid
+flowchart TD
+  K["telegram-qi_bot 项目"] --> F1["memory-context.cjs"]
+  K --> F2["lmc-memory-store.cjs"]
+  K --> F3["Notion 设计页"]
+  K --> F4["下一步任务"]
+
+  F1 --> A["负责召回上下文"]
+  F2 --> B["负责 LMC 落盘 / 状态 / 召回"]
+  F3 --> C["记录设计目标"]
+  F4 --> D["重做阿祈记忆系统"]
+  A -. "实现相关" .- B
+  C -. "指导" .- D
+```
+
+长期事实记忆更像 Zep / Graphiti：关心事实什么时候有效、什么时候被新事实替代。
+
+```mermaid
+flowchart TD
+  U["用户"] --> A["以前的计划: 扩展 LMC"]
+  U --> B["现在的计划: 重新做记忆系统，参考 LMC"]
+  A --> T1["旧事实 / historical"]
+  B --> T2["2026-07-06 后有效 / current"]
+  B --> E["来源: 本次对话"]
+```
 
 ## 3. 第一层 domain
 
