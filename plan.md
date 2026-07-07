@@ -45,7 +45,7 @@ flowchart TD
   R -->|"明确要求修改外部文档"| ER["External Edit Router"]
 
   MR --> PM["Personal Memory<br/>memory_card / fact_timeline"]
-  MR --> EV["Evidence Archive<br/>raw utterances / event summaries / clusters"]
+  MR --> EV["Evidence Archive<br/>raw SQLite / event summaries / clusters"]
   PM --> MB["Memory Context Block<br/>只整理记忆系统召回内容"]
   EV --> MB
 
@@ -66,7 +66,7 @@ flowchart TD
   OI --> O["Output Layer<br/>自然回答 / 工作时结构化"]
 
   O --> PU["Post-Output Processor"]
-  PU --> RAW["raw_utterances<br/>保存 user 原话"]
+  PU --> RAW["raw_utterances<br/>保存 user 原话到 SQLite"]
   PU --> MW{"需要生成/更新 memory_card 或 timeline？"}
   PU --> ES{"需要 event_summary？"}
   PU --> EU{"外部文档更新？"}
@@ -171,7 +171,7 @@ learning-vault/<topic>/progress.md
 ```text
 原话是证据，不自动变成 current fact。
 重复原话可以聚类，但不破坏代表性原文。
-需要上下文时，通过 conversation_id + message_index 回查前后内容。
+需要上下文时，通过 conversation_id + message_index 或时间锚点回查前后内容。
 ```
 
 ## 4. 输入、处理、输出、更新
@@ -550,9 +550,81 @@ raw utterance 保存用户原话，至少包含：
 明显重复且无证据价值的原文可后期归档，但不丢时间索引。
 ```
 
-## 11. 外部化策略
+## 11. Raw Conversation Store：SQLite 与索引
 
-### 11.1 项目/代码
+原始对话底层建议放本地 SQLite，而不是一个大文档。
+
+原因：
+
+```text
+按时间查很快。
+按 conversation_id + message_index 拉前后文很快。
+SQLite FTS5 可以做全文搜索。
+本地文件易备份和迁移。
+不依赖外部服务。
+```
+
+最小表结构：
+
+```text
+raw_messages
+- id
+- conversation_id
+- message_index
+- speaker
+- text
+- timestamp
+- topic_hint
+- text_hash
+- created_at
+```
+
+第一版索引：
+
+```text
+timestamp 索引
+conversation_id + message_index 联合索引
+topic_hint 索引
+FTS5 全文搜索索引
+```
+
+常用查询：
+
+```text
+按日期查：timestamp between 某天开始 and 某天结束。
+按关键词查：FTS 搜 text。
+拉上下文：conversation_id = xxx 且 message_index between N-5 and N+5。
+按时间锚点回查：以 memory_card.event_time 为中心查前后 10 分钟，不够再扩大。
+```
+
+关于容量：
+
+```text
+10 万条消息很轻松。
+100 万条消息在索引设计正常时也可以接受。
+真正变慢通常是没有索引、一次查太大范围、FTS 不维护、或者一次给模型太多结果。
+```
+
+当前阶段：
+
+```text
+暂时不需要特别处理过去对话。
+先保证新写入的 raw_messages 有正确索引。
+后续如果数据量变大，再做冷热归档。
+```
+
+后续可选归档策略：
+
+```text
+最近 3-6 个月留在 hot raw store。
+更早的原始对话按月份归档成 archive_YYYY_MM.sqlite 或 JSONL 压缩备份。
+event_summary / memory_card / fact_timeline 长期保留。
+定期执行 FTS optimize / vacuum。
+```
+
+## 12. 外部化策略
+
+### 12.1 项目/代码
 
 项目类记忆特殊，变化快，单独外部化。
 
@@ -563,7 +635,7 @@ raw utterance 保存用户原话，至少包含：
 需要项目记忆时，Router 调用工具读取外部文件和代码。
 ```
 
-### 11.2 学习
+### 12.2 学习
 
 学习资料也适合外部库。
 
@@ -572,7 +644,7 @@ raw utterance 保存用户原话，至少包含：
 学习资料原文、阅读笔记、课程内容放 learning vault / Notion / Obsidian。
 ```
 
-### 11.3 健康 / 财务 / 关系 / self
+### 12.3 健康 / 财务 / 关系 / self
 
 这些放 personal memory，但要谨慎：
 
@@ -584,7 +656,7 @@ self 是长期稳定偏好的核心来源，但非常稳定的内容应进入 pr
 经期等周期性健康事件需要单独设计，不直接套普通 temporary_event。
 ```
 
-## 12. 第一版 MVP
+## 13. 第一版 MVP
 
 第一版只做这些：
 
@@ -593,14 +665,15 @@ self 是长期稳定偏好的核心来源，但非常稳定的内容应进入 pr
 2. Project Notes / Learning Vault 外部化。
 3. Personal memory cards：基础信息 + 类型专属信息。
 4. fact_timeline：按时间正序 + current_event_id。
-5. raw_utterances：保存 user 原话和上下文定位。
-6. utterance_clusters：重复原话聚类。
-7. event_summary：达到阈值才生成。
-8. 关键词触发召回和工具调用。
-9. Memory Context Block：只整理记忆系统召回内容。
-10. External Context：工具返回内容单独提供。
-11. 基础 UI/管理：删除、归档、改 topic/domain、标记错误。
-12. 基础审计：temporary_event 过期、event_summary 归档、needs_review backlog。
+5. Raw Conversation Store：本地 SQLite + 时间/会话/FTS 索引。
+6. raw_utterances：保存 user 原话和上下文定位。
+7. utterance_clusters：重复原话聚类。
+8. event_summary：达到阈值才生成。
+9. 关键词触发召回和工具调用。
+10. Memory Context Block：只整理记忆系统召回内容。
+11. External Context：工具返回内容单独提供。
+12. 基础 UI/管理：删除、归档、改 topic/domain、标记错误。
+13. 基础审计：temporary_event 过期、event_summary 归档、needs_review backlog。
 ```
 
 暂时不做：
@@ -615,9 +688,10 @@ self 是长期稳定偏好的核心来源，但非常稳定的内容应进入 pr
 自动重写大型 snapshot。
 项目文件关系长期死记。
 周期性健康事件的完整规则。
+旧对话冷热归档。
 ```
 
-## 13. 已确认设计决策
+## 14. 已确认设计决策
 
 ```text
 1. 新系统不直接扩展现有 LMC。
@@ -631,14 +705,16 @@ self 是长期稳定偏好的核心来源，但非常稳定的内容应进入 pr
 9. 历史信息用时间线表达，不需要给历史贴太多状态。
 10. 原话证据不等于 current fact。
 11. 重复原话用 utterance_clusters 聚类，保留时间和上下文定位。
-12. Event summary 用于定位一段对话，不替代长期事实，也不每轮生成。
-13. 外部文档修改必须明确触发，不让模型自动乱改。
-14. 日常回答自然，不必每次刻意展示来源；工作场景可以更明确。
-15. 健康、财务、关系记忆以用户输入为主，模型推测必须有边界。
-16. 周期性事件（如经期）单独规划，不套普通临时事件模板。
+12. 原始对话放本地 SQLite，使用时间、会话位置和 FTS 索引。
+13. 回查上下文优先使用时间锚点、conversation_id、message_index。
+14. Event summary 用于定位一段对话，不替代长期事实，也不每轮生成。
+15. 外部文档修改必须明确触发，不让模型自动乱改。
+16. 日常回答自然，不必每次刻意展示来源；工作场景可以更明确。
+17. 健康、财务、关系记忆以用户输入为主，模型推测必须有边界。
+18. 周期性事件（如经期）单独规划，不套普通临时事件模板。
 ```
 
-## 14. 后续待确认
+## 15. 后续待确认
 
 ```text
 1. 固定 domain 的最终名字。
@@ -652,9 +728,11 @@ self 是长期稳定偏好的核心来源，但非常稳定的内容应进入 pr
 9. event_summary 审计和归档规则。
 10. raw_utterances 的保留期限和归档规则。
 11. utterance_clusters 的相似度阈值。
-12. Project Notes 和 Learning Vault 的实际目录结构。
-13. Memory Context Block 的具体格式。
-14. External Context 与 Memory Context 的组合规则。
-15. UI 第一版具体做哪些管理能力。
-16. 周期性健康事件，例如经期记录，如何单独建模。
+12. SQLite schema 和 FTS5 分词方案。
+13. Raw Conversation Store 后续冷热归档规则。
+14. Project Notes 和 Learning Vault 的实际目录结构。
+15. Memory Context Block 的具体格式。
+16. External Context 与 Memory Context 的组合规则。
+17. UI 第一版具体做哪些管理能力。
+18. 周期性健康事件，例如经期记录，如何单独建模。
 ```
