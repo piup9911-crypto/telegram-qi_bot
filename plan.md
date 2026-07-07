@@ -745,3 +745,155 @@ utterance_clusters / 原话聚类。
 14. codex.md / gemini.md 动态区域的写入和清理规则。
 15. UI 第一版具体做哪些管理能力。
 16. 周期健康事件，例如经期记录，如何单独建模。
+```
+
+## 15. 平台协作参考草案
+
+> 状态：仅作为 2026-07-07 的参考草案。用户仍在考虑，后续需要在主设备上和 Codex 再确认具体方案。这里不作为最终架构决定。
+
+当前前提：
+
+```text
+用户不想花钱。
+本地 bot 基本长期保持开启。
+后续可能直接删除现有 LMC 系统。
+当前重点不是把系统全搬云端，而是减少云端额度消耗、降低同步频次、明确平台职责。
+```
+
+### 15.1 三个平台的建议职责
+
+```text
+本地电脑 / 本地后端
+作为主脑：运行 Telegram bridge、模型/CLI bridge、SQLite、md 笔记、记忆整理、项目/学习资料检索。
+
+Cloudflare
+作为门和通道：域名、DNS、Tunnel、Worker 轻量转发、简单鉴权、必要时提供远程访问入口。
+
+Supabase
+作为可选热状态层：只放当前状态、少量热记忆、同步队列、最近计划或控制状态。不放全量原始对话，不承担重型记忆系统。
+
+Vercel
+作为可选网页壳：只放状态页、控制台或轻量 API。不跑重型记忆整理，不作为主要数据库层。
+```
+
+一句话版本：
+
+```text
+本地做大脑；Cloudflare 做门；Supabase 做小便签；Vercel 暂时不要当核心。
+```
+
+### 15.2 推荐优先级
+
+```text
+第一优先：本地
+全量原始对话、SQLite FTS、memory cards、event summaries、project notes、learning vault、模型桥。
+
+第二优先：Cloudflare
+域名、Tunnel、Worker 轻量入口、远程访问本地控制台或公开 API。
+
+第三优先：Supabase
+只保留少量热状态和同步队列，避免高频读写和大量存储。
+
+第四优先：Vercel
+能不用就不用；如果保留，只做静态控制台/状态页/轻量接口。
+```
+
+### 15.3 暂定架构图
+
+```mermaid
+flowchart TD
+  TG["Telegram / 手机"] --> API["Telegram Bot API"]
+  API --> LB["本地 Telegram bridge<br/>长期运行 / polling"]
+
+  LB --> CLI["本地模型或 CLI bridge<br/>Codex / Gemini / Antigravity"]
+  LB --> SQL["本地 SQLite<br/>raw_messages / FTS / 时间索引"]
+  LB --> MD["本地 md 笔记<br/>profile / project-notes / learning-vault"]
+  LB --> MEM["本地轻量记忆<br/>memory_card / event_summary / fact_timeline"]
+
+  CF["Cloudflare<br/>域名 / Tunnel / Worker"] -. "远程入口 / 鉴权 / 转发" .-> LB
+
+  LB -. "低频同步，可选" .-> SB["Supabase<br/>热状态 / 队列 / 少量 memory_card"]
+  VC["Vercel<br/>状态页 / 控制台，可选"] -. "读取热状态" .-> SB
+```
+
+### 15.4 云端只放热数据
+
+如果保留 Supabase / Vercel，第一版尽量只同步这些：
+
+```text
+当前 bot 状态。
+最近活跃会话的简略状态。
+当前计划 / active ledger。
+少量非常重要的 memory_card。
+待本地处理的任务队列。
+多端 UI 需要展示的少量状态。
+```
+
+不要同步这些：
+
+```text
+全量原始对话。
+大段历史上下文。
+大量 event_summary。
+项目文件图谱。
+学习资料原文。
+向量索引。
+每轮自动记忆分析结果。
+```
+
+### 15.5 频次原则
+
+```text
+本地 raw log 可以高频写。
+云端同步必须低频、批量、可关闭。
+记忆召回第一版采用关键词触发，不每轮召回。
+长期记忆写入不每轮触发，只在明确有价值、达到阈值或用户明确要求时写。
+外部文档修改必须由明确关键词/指令触发。
+```
+
+可参考的同步节奏：
+
+```text
+每轮：只写本地 raw log。
+触发关键词：本地检索 memory / raw / external notes。
+空闲或积累到阈值：本地生成 event_summary / memory_card。
+低频：把少量热状态同步到 Supabase。
+需要远程访问：通过 Cloudflare Tunnel / Worker 进入本地服务。
+```
+
+### 15.6 完全不用 Supabase / Vercel 的影响
+
+如果完全不用 Supabase / Vercel，仍然可用：
+
+```text
+本地 Telegram polling。
+本地模型/CLI bridge。
+本地 SQLite。
+本地记忆系统。
+本地 md 项目和学习资料。
+```
+
+会变弱：
+
+```text
+电脑关机后 bot 不可用。
+多端同步变弱。
+远程状态页/控制台变弱。
+公开 webhook/API 不方便。
+云端热记忆不可用。
+```
+
+因为用户目前本地 bot 长期开着，所以完全云端化不是第一优先。更合理的是先保留本地核心，谨慎保留少量云端热同步。
+
+### 15.7 后续需要主设备确认的问题
+
+```text
+1. 是否继续保留 Vercel，还是只保留 Cloudflare + 本地。
+2. Supabase 是否只做热状态/队列，还是彻底停用。
+3. Cloudflare Tunnel 是否作为远程访问主入口。
+4. Telegram 是否继续使用 polling，而不是 webhook。
+5. 本地 SQLite 和 md 文件的实际目录放在哪里。
+6. 云端同步的最低频率和最大数据量。
+7. 删除 LMC 后，旧 shared-memory / cloud-memory / status-sync 文件是否归档或清理。
+8. 是否需要 Tailscale 这类私有网络方案作为远程访问备选。
+```
