@@ -6184,6 +6184,7 @@ async function handleTelegramMessage(bot, msg) {
     let previewClosing = false;
     let firstPreviewSendPromise = null;
     let firstPreviewSendStartedAt = 0;
+    let processingPlaceholderTimer = null;
     try {
       activeWindowId = getActiveMainWindowId(chatId);
       // Hold the native sync turn lock for the whole bridge turn so trajectory
@@ -6468,6 +6469,26 @@ async function handleTelegramMessage(bot, msg) {
       };
 
       geminiStartedAt = Date.now();
+      if (shouldUseAntigravityBackend()) {
+        processingPlaceholderTimer = setTimeout(() => {
+          if (
+            finalReplyStarted ||
+            previewClosing ||
+            streamMessageId ||
+            pendingPreviewText ||
+            firstPreviewSendPromise
+          ) {
+            return;
+          }
+          queuePreviewUpdate(
+            "\u5df2\u6536\u5230\uff0cAntigravity \u8fd8\u5728\u5904\u7406\u8fd9\u6761\u6d88\u606f\u3002",
+            { source: "processing-placeholder" }
+          );
+        }, 15000);
+        if (typeof processingPlaceholderTimer.unref === "function") {
+          processingPlaceholderTimer.unref();
+        }
+      }
       reportFlowEvent({
         step: "call-gemini-cli",
         stepLabel: shouldUseAntigravityBackend() ? "璋冪敤 Antigravity CLI" : "璋冪敤 Gemini CLI",
@@ -6840,6 +6861,10 @@ async function handleTelegramMessage(bot, msg) {
       if (previewUpdateTimer) {
         clearTimeout(previewUpdateTimer);
         previewUpdateTimer = null;
+      }
+      if (processingPlaceholderTimer) {
+        clearTimeout(processingPlaceholderTimer);
+        processingPlaceholderTimer = null;
       }
       // Release the turn lock so deferred native sync writers can settle.
       releaseNativeSyncTurnLock(activeWindowId);
