@@ -212,6 +212,10 @@ const LEGACY_MEMORY_INGEST_ENABLED = [
     .trim()
     .toLowerCase()
 );
+const LMC_MEMORY_ENABLED = parseEnvBoolean(
+  process.env.BRIDGE_LMC_MEMORY_ENABLED,
+  false
+);
 const MEMORY_HISTORY_RETAIN_MESSAGES = Number.POSITIVE_INFINITY;
 const STREAM_PREVIEW_UPDATE_MS = Math.max(
   250,
@@ -558,6 +562,9 @@ function buildDynamicGeminiRules(personaText, bridgeContext, timeContext, memory
 }
 
 function writeDynamicGeminiRules(content) {
+  if (!DYNAMIC_GEMINI_CONTEXT_ENABLED) {
+    return { changed: false, chars: 0, skipped: "disabled" };
+  }
   const next = String(content || "").trim();
   if (!next) {
     throw new Error("Refusing to write empty dynamic GEMINI.md.");
@@ -1944,6 +1951,7 @@ function buildHistoryKey(message) {
 }
 
 function logNativeTrajectoryTurns(chatId, messages, metadata = {}) {
+  if (!LMC_MEMORY_ENABLED) return [];
   const sourceMessages = Array.isArray(messages) ? messages : [];
   const events = [];
   for (let index = 0; index < sourceMessages.length; index += 1) {
@@ -5451,6 +5459,13 @@ function enqueueChat(chatId, task) {
 }
 
 function runLmcMemoryIngest(chatId) {
+  if (!LMC_MEMORY_ENABLED) {
+    log("lmc memory ingest skipped", {
+      chatId,
+      reason: "BRIDGE_LMC_MEMORY_ENABLED is false"
+    });
+    return Promise.resolve({ skipped: "disabled" });
+  }
     return new Promise((resolve) => {
       let settled = false;
       let stdout = "";
@@ -5517,6 +5532,13 @@ function runLmcMemoryIngest(chatId) {
 }
 
 function triggerTelegramMemoryIngest(chatId) {
+  if (!LMC_MEMORY_ENABLED && !LEGACY_MEMORY_INGEST_ENABLED) {
+    log("memory ingest skipped", {
+      chatId,
+      reason: "all memory ingest pipelines are disabled"
+    });
+    return;
+  }
   const state = loadChatState(chatId);
   const completedTurns = Number.isInteger(state.completedTurnsSinceMemoryIngest)
     ? state.completedTurnsSinceMemoryIngest
@@ -5654,6 +5676,13 @@ function triggerTelegramMemoryIngest(chatId) {
 }
 
 function scheduleTelegramMemoryIngest(chatId, completedTurns) {
+  if (!LMC_MEMORY_ENABLED && !LEGACY_MEMORY_INGEST_ENABLED) {
+    log("memory ingest not scheduled because pipelines are disabled", {
+      chatId,
+      completedTurns
+    });
+    return;
+  }
   if (completedTurns < MEMORY_INGEST_TURN_THRESHOLD) {
     log("memory ingest not scheduled because threshold is not met", {
       chatId,
@@ -6747,28 +6776,35 @@ async function handleTelegramMessage(bot, msg) {
         telegramFinalizeElapsedMs: Date.now() - telegramFinalizeStartedAt,
         textPreview: result.text.slice(0, 120)
       });
-      try {
-        const events = logTelegramTurn({
+      if (LMC_MEMORY_ENABLED) {
+        try {
+          const events = logTelegramTurn({
+            chatId,
+            userText: messageText,
+            assistantText: assistantRecordText,
+            userAt: userMessageAt,
+            assistantAt: assistantMessageAt,
+            metadata: {
+              model: activeModel,
+              thinkingMode: state.thinkingMode || "hidden"
+            }
+          });
+          log("lmc raw events logged", {
+            chatId,
+            eventCount: events.length
+          });
+        } catch (error) {
+          // Raw-event capture is the base of the LMC loop, but a disk hiccup here
+          // must not stop a reply that already reached Telegram.
+          log("lmc raw event logging failed", {
+            chatId,
+            error: error && error.message ? error.message : String(error)
+          });
+        }
+      } else {
+        log("lmc raw event logging skipped", {
           chatId,
-          userText: messageText,
-          assistantText: assistantRecordText,
-          userAt: userMessageAt,
-          assistantAt: assistantMessageAt,
-          metadata: {
-            model: activeModel,
-            thinkingMode: state.thinkingMode || "hidden"
-          }
-        });
-        log("lmc raw events logged", {
-          chatId,
-          eventCount: events.length
-        });
-      } catch (error) {
-        // Raw-event capture is the base of the LMC loop, but a disk hiccup here
-        // must not stop a reply that already reached Telegram.
-        log("lmc raw event logging failed", {
-          chatId,
-          error: error && error.message ? error.message : String(error)
+          reason: "BRIDGE_LMC_MEMORY_ENABLED is false"
         });
       }
       scheduleTelegramMemoryIngest(
