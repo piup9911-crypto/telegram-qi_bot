@@ -67,6 +67,10 @@ if (!process.env.CHAT_ID && process.env.TELEGRAM_CHAT_ID) {
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
+const TELEGRAM_MCP_POLLING_ENABLED =
+  String(process.env.TELEGRAM_MCP_ENABLE_POLLING || "")
+    .trim()
+    .toLowerCase() === "true";
 
 if (!TELEGRAM_TOKEN || !CHAT_ID) {
   log("Missing TELEGRAM_TOKEN or CHAT_ID");
@@ -365,37 +369,41 @@ const startServer = () => {
 
 const initializeBot = async () => {
   bot = new TelegramBot(TELEGRAM_TOKEN, {
-    polling: true,
+    polling: TELEGRAM_MCP_POLLING_ENABLED,
     filepath: false,
   });
 
-  bot.on("message", (msg) => {
-    if (!msg?.text) return;
-    if (String(msg.chat?.id) !== String(validatedChatId)) return;
+  if (!TELEGRAM_MCP_POLLING_ENABLED) {
+    log("Telegram MCP polling disabled. Set TELEGRAM_MCP_ENABLE_POLLING=true only when the main bridge is stopped.");
+  } else {
+    bot.on("message", (msg) => {
+      if (!msg?.text) return;
+      if (String(msg.chat?.id) !== String(validatedChatId)) return;
 
-    let questionId = null;
-    const replyText = msg.reply_to_message?.text;
-    if (replyText) {
-      const match = replyText.match(/#([a-z0-9]+)\n/i);
-      if (match) {
-        questionId = match[1];
+      let questionId = null;
+      const replyText = msg.reply_to_message?.text;
+      if (replyText) {
+        const match = replyText.match(/#([a-z0-9]+)\n/i);
+        if (match) {
+          questionId = match[1];
+        }
       }
-    }
 
-    if (!questionId) {
-      questionId = lastQuestionId;
-    }
+      if (!questionId) {
+        questionId = lastQuestionId;
+      }
 
-    if (questionId && pendingQuestions.has(questionId)) {
-      const resolve = pendingQuestions.get(questionId);
-      resolve(msg.text);
-    }
-  });
+      if (questionId && pendingQuestions.has(questionId)) {
+        const resolve = pendingQuestions.get(questionId);
+        resolve(msg.text);
+      }
+    });
+  }
 
   bot.on("polling_error", (error) => {
     const message = error?.message || "";
     if (message.includes("409 Conflict")) {
-      log("Ignoring Telegram polling conflict");
+      log("Telegram MCP polling conflict. Stop other bot pollers or disable TELEGRAM_MCP_ENABLE_POLLING.");
       return;
     }
     log("Polling error:", message);
