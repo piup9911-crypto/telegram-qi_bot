@@ -40,7 +40,7 @@ if errorlevel 1 (
 
 cd /d "%BRIDGE_DIR%"
 echo Starting Telegram bridge...
-node telegram-gem-bridge.cjs
+node src\gem\telegram-gem-bridge.cjs
 echo.
 echo Telegram bridge stopped. Check bridge-state\bridge.log if you need details.
 pause

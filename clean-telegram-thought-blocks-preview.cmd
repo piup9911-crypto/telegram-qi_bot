@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-node clean-telegram-thought-blocks.cjs --preview
+node scripts\clean-telegram-thought-blocks.cjs --preview
 pause

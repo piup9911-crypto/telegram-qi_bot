@@ -37,7 +37,7 @@ if not exist "%APPDATA%\npm\codex.cmd" (
 
 cd /d "%BRIDGE_DIR%"
 echo Starting Codex Telegram bridge...
-node telegram-codex-bridge.cjs
+node src\codex\telegram-codex-bridge.cjs
 echo.
 echo Codex Telegram bridge stopped. Check codex-bridge-state\codex-bridge.log if you need details.
 pause

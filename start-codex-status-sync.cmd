@@ -19,7 +19,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$lock = $env:LOCK_PATH; 
 
 cd /d "%ROOT%"
 echo Starting Codex status sync loop...
-node codex-status-sync.cjs --watch
+node src\codex\codex-status-sync.cjs --watch
 echo.
 echo Codex status sync stopped.
 

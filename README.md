@@ -29,7 +29,7 @@ start-telegram-gem-bridge.cmd
 或：
 
 ```cmd
-node telegram-gem-bridge.cjs
+node src\gem\telegram-gem-bridge.cjs
 ```
 
 ### 启动本地记忆管理器
@@ -152,21 +152,21 @@ Telegram 主 bot 的 prompt 由 `telegram-gem-bridge.cjs` 组装，并通过 Gem
 
 | 文件 | 用途 |
 | --- | --- |
-| `telegram-gem-bridge.cjs` | Telegram 主桥接程序 |
-| `memory-ingest.cjs` | Telegram 聊天摘要摄取 |
-| `lmc-memory-ingest.cjs` | LMC hippocampus 后台整理，把事件片段提炼为生活事件、搜索证据和严格记忆 |
-| `lmc-memory-store.cjs` | LMC 文件型存储、过期判断、事实替换、召回和巡检 |
-| `lmc-status.cjs` | 输出 LMC 统计状态，不输出记忆正文 |
-| `memory-context.cjs` | 汇总长期记忆、向量召回、聊天召回和 LMC 召回，生成 prompt 记忆上下文 |
-| `memory-vector.cjs` | 本地向量索引和检索支持 |
-| `chat-vector-memory-v2.cjs` | 并行的聊天向量索引 V2，生成时间线、来源树和样本预览，暂不替换当前 bot 召回 |
-| `rebuild-chat-vectors-v2.cjs` | 一次性重建 V2 索引；会复用旧向量，只有新增/变化片段才重新嵌入 |
-| `shared-memory-sync.cjs` | Telegram 可读记忆编译 |
-| `independent-memory-store.cjs` | 文件型独立记忆存储 |
-| `independent-memory-manager.cjs` | 本地记忆管理 Web 服务 |
-| `cloud-memory-client.cjs` | 云端记忆 API 客户端 |
-| `gemini-cli-openai-bridge.cjs` | OpenAI 兼容接口桥接 |
-| `telegram-mcp-fixed.cjs` | Telegram MCP 服务端 |
+| `src/gem/telegram-gem-bridge.cjs` | Telegram 主桥接程序 |
+| `src/memory/memory-ingest.cjs` | Telegram 聊天摘要摄取 |
+| `src/memory/lmc-memory-ingest.cjs` | LMC hippocampus 后台整理，把事件片段提炼为生活事件、搜索证据和严格记忆 |
+| `src/memory/lmc-memory-store.cjs` | LMC 文件型存储、过期判断、事实替换、召回和巡检 |
+| `src/memory/lmc-status.cjs` | 输出 LMC 统计状态，不输出记忆正文 |
+| `src/memory/memory-context.cjs` | 汇总长期记忆、向量召回、聊天召回和 LMC 召回，生成 prompt 记忆上下文 |
+| `src/memory/memory-vector.cjs` | 本地向量索引和检索支持 |
+| `src/memory/chat-vector-memory-v2.cjs` | 并行的聊天向量索引 V2，生成时间线、来源树和样本预览，暂不替换当前 bot 召回 |
+| `scripts/rebuild-chat-vectors-v2.cjs` | 一次性重建 V2 索引；会复用旧向量，只有新增/变化片段才重新嵌入 |
+| `src/memory/shared-memory-sync.cjs` | Telegram 可读记忆编译 |
+| `src/memory/core-memory-store.cjs` | 文件型独立记忆存储 |
+| `src/memory/memory-manager.cjs` | 本地记忆管理 Web 服务 |
+| `src/adapters/cloud-memory-client.cjs` | 云端记忆 API 客户端 |
+| `src/gem/gemini-cli-openai-bridge.cjs` | OpenAI 兼容接口桥接 |
+| `src/gem/telegram-mcp-fixed.cjs` | Telegram MCP 服务端 |
 
 状态页同步文件在网站仓库 `C:\Users\yx\Documents\New project\hello-vercel`：
 
@@ -189,20 +189,20 @@ Telegram 主 bot 的 prompt 由 `telegram-gem-bridge.cjs` 组装，并通过 Gem
 ## 验证命令
 
 ```cmd
-node --check memory-ingest.cjs
-node --check lmc-memory-store.cjs
-node --check lmc-memory-ingest.cjs
-node --check memory-context.cjs
-node --check chat-vector-memory-v2.cjs
-node --check rebuild-chat-vectors-v2.cjs
-node --check shared-memory-sync.cjs
-node --check telegram-gem-bridge.cjs
-node --check independent-memory-manager.cjs
-node lmc-status.cjs
-node memory-ingest.cjs --source cli
-node memory-ingest.cjs --source telegram
-node rebuild-chat-vectors-v2.cjs
-node shared-memory-sync.cjs
+npm run check
+node --check src/memory/memory-ingest.cjs
+node --check src/memory/lmc-memory-store.cjs
+node --check src/memory/lmc-memory-ingest.cjs
+node --check src/memory/memory-context.cjs
+node --check src/memory/chat-vector-memory-v2.cjs
+node --check scripts/rebuild-chat-vectors-v2.cjs
+node --check src/memory/shared-memory-sync.cjs
+node --check src/memory/memory-manager.cjs
+node src/memory/lmc-status.cjs
+node src/memory/memory-ingest.cjs --source cli
+node src/memory/memory-ingest.cjs --source telegram
+node scripts/rebuild-chat-vectors-v2.cjs
+node src/memory/shared-memory-sync.cjs
 ```
 
 预期：

@@ -11,5 +11,5 @@ cd /d "%ROOT%"
 echo Starting Gem bridge chat record manager...
 echo PC browser:    http://127.0.0.1:4144
 echo Phone browser: http://192.168.101.8:4144
-node gem-chat-record-manager.cjs
+node src\rp\gem-chat-record-manager.cjs
 pause

@@ -17,7 +17,7 @@ if "%LOCK_STATUS%"=="10" (
 
 cd /d "%ROOT%"
 echo Starting Codex control agent...
-node codex-control-agent.cjs --watch
+node src\codex\codex-control-agent.cjs --watch
 echo.
 echo Codex control agent stopped.
 pause
