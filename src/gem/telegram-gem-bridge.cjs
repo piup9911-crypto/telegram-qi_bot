@@ -246,11 +246,11 @@ const TELEGRAM_POLLING_RESTART_START_TIMEOUT_MS = Math.max(
   Number.parseInt(process.env.BRIDGE_TELEGRAM_POLLING_RESTART_START_TIMEOUT_MS || "300000", 10) || 300000
 );
 const TELEGRAM_POLLING_RESTART_MAX_ATTEMPTS = Math.max(
-  1,
-  Number.parseInt(process.env.BRIDGE_TELEGRAM_POLLING_RESTART_MAX_ATTEMPTS || "1", 10) || 1
+  0,
+  Number.parseInt(process.env.BRIDGE_TELEGRAM_POLLING_RESTART_MAX_ATTEMPTS || "0", 10) || 0
 );
 const TELEGRAM_POLLING_STOP_ON_PERSISTENT_CONFLICT =
-  String(process.env.BRIDGE_TELEGRAM_STOP_ON_PERSISTENT_409 || "true")
+  String(process.env.BRIDGE_TELEGRAM_STOP_ON_PERSISTENT_409 || "false")
     .trim()
     .toLowerCase() !== "false";
 const TELEGRAM_POLLING_ERROR_LOG_INTERVAL_MS = Math.max(
@@ -4251,7 +4251,7 @@ function cleanAntigravityThinkingText(thinkingText) {
   const sections = cleaned.split(/(?=\n?\*\*[^*\n]+\*\*\n)/g);
   const kept = sections.filter((section) => {
     const heading = (section.match(/\*\*([^*\n]+)\*\*/) || [])[1] || "";
-    return !/tool|command|stdin|placeholder|cli call|data flow|input mechanism/i.test(
+    return !/stdin|placeholder|cli call|data flow|input mechanism/i.test(
       heading
     );
   });
@@ -7183,6 +7183,25 @@ async function startBridge() {
     if (telegramPollingStoppedForConflict) {
       return;
     }
+    if (isTelegramGetUpdatesConflict(reason)) {
+      log("telegram polling restart skipped for getUpdates conflict", {
+        reason,
+        consecutivePollingErrors,
+        nextAction: "keep one poller alive; restart the whole bridge process if conflicts persist"
+      });
+      return;
+    }
+    if (TELEGRAM_POLLING_RESTART_MAX_ATTEMPTS <= 0) {
+      if (!pollingRestartSuppressedLogged) {
+        log("telegram polling manual restart disabled", {
+          reason,
+          consecutivePollingErrors,
+          maxAttempts: TELEGRAM_POLLING_RESTART_MAX_ATTEMPTS
+        });
+        pollingRestartSuppressedLogged = true;
+      }
+      return;
+    }
     if (pollingRestartTimer || pollingRestartInFlight) {
       return;
     }
@@ -7351,6 +7370,7 @@ async function startBridge() {
     }
     const shouldRestartPolling =
       !telegramPollingStoppedForConflict &&
+      !isTelegramGetUpdatesConflict(message) &&
       (consecutivePollingErrors >= TELEGRAM_POLLING_RESTART_ERROR_THRESHOLD ||
         /ECONNRESET|socket hang up|TLS connection|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|EFATAL/i.test(message));
     if (shouldRestartPolling) {
