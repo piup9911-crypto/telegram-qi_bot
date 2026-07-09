@@ -257,6 +257,10 @@ const TELEGRAM_POLLING_ERROR_LOG_INTERVAL_MS = Math.max(
   1000,
   Number.parseInt(process.env.BRIDGE_TELEGRAM_POLLING_ERROR_LOG_INTERVAL_MS || "10000", 10) || 10000
 );
+const TELEGRAM_STARTUP_CALL_TIMEOUT_MS = Math.max(
+  3000,
+  Number.parseInt(process.env.BRIDGE_TELEGRAM_STARTUP_CALL_TIMEOUT_MS || "15000", 10) || 15000
+);
 const SHARED_MEMORY_PAGE_URL =
   process.env.SHARED_MEMORY_PAGE_URL ||
   "https://www.naginoumi.com/memory-monitor.html";
@@ -7246,6 +7250,9 @@ async function startBridge() {
     if (typeof pollingRestartTimer.unref === "function") pollingRestartTimer.unref();
   };
 
+  log("telegram command menu setup starting", {
+    timeoutMs: TELEGRAM_STARTUP_CALL_TIMEOUT_MS
+  });
   await telegramCallWithTimeout(
     bot.setMyCommands([
       { command: "menu", description: "鏄剧ず鍏ㄩ儴鑿滃崟" },
@@ -7260,10 +7267,12 @@ async function startBridge() {
       { command: "reset", description: "閲嶇疆瀵硅瘽" },
       { command: "help", description: "甯姪" }
     ]),
-    "Telegram setMyCommands"
+    "Telegram setMyCommands",
+    TELEGRAM_STARTUP_CALL_TIMEOUT_MS
   ).catch((error) => {
     log("telegram command menu setup failed; continuing startup", error.message);
   });
+  log("telegram command menu setup finished");
 
   const processingMessageIds = new Set();
   let lastSeenUpdateId = 0;
@@ -7348,7 +7357,14 @@ async function startBridge() {
 
   let botInfo = null;
   try {
-    botInfo = await telegramCallWithTimeout(bot.getMe(), "Telegram getMe");
+    log("telegram getMe starting", {
+      timeoutMs: TELEGRAM_STARTUP_CALL_TIMEOUT_MS
+    });
+    botInfo = await telegramCallWithTimeout(
+      bot.getMe(),
+      "Telegram getMe",
+      TELEGRAM_STARTUP_CALL_TIMEOUT_MS
+    );
   } catch (error) {
     log("telegram getMe failed; continuing startup", error.message);
   }
