@@ -58,8 +58,9 @@ accidentally.
 
 ## Local Tools
 
-- New independent memory editor:
-  `start-independent-memory-manager.cmd`, then open `http://127.0.0.1:4142/`.
+- The old independent memory editor page has been removed. Keep the LMC files
+  and memory compilation scripts for reference/runtime work, but do not treat a
+  local memory page as the source of truth.
 - Old cloud import:
   `node legacy-cloud-memory-migration.cjs --force` if you need to rerun the
   one-time import from old `approvedEntries` / `pendingEntries`.
@@ -75,7 +76,6 @@ node --check telegram-gem-bridge.cjs
 node --check memory-ingest.cjs
 node --check independent-memory-store.cjs
 node --check shared-memory-sync.cjs
-node --check independent-memory-manager.cjs
 node --check legacy-cloud-memory-migration.cjs
 ```
 

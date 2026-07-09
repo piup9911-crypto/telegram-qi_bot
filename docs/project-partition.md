@@ -202,7 +202,7 @@
 ## 建议执行顺序
 
 1. Gem 主 bot：修 prompt 分层、LMC 检索、sidecar 同步默认值和上下文预算
-2. memory 页面：冻结旧 `memory.html`，新建 Memory Console
+2. memory 页面：旧中心页删除；新记忆系统先分散到 records、profile、外部 notes 等真实入口
 3. mini notion / 秘密日记 / 魔法实验室 / 阿祈的小世界：复制成独立 Web App
 4. RP bot：抽离 `gem-chat-record-manager` 和 `rp-runtime`
 5. Codex bot：独立 state/env/workspace

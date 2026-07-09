@@ -23,7 +23,6 @@ runtime unless explicitly imported by the website.
   as SillyTavern-style clients.
 - `memory-ingest.cjs`: background small-summary and large-summary generation.
 - `independent-memory-store.cjs`: file-backed memory record storage.
-- `independent-memory-manager.cjs` and `.html`: local memory editor.
 - `shared-memory-sync.cjs`: compiles readable memory into `INDEPENDENT_MEMORY.md`
   for CLI and Telegram workspaces.
 - `legacy-cloud-memory-migration.cjs`: one-time migration from the old cloud

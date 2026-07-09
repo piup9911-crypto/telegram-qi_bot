@@ -32,17 +32,9 @@ start-telegram-gem-bridge.cmd
 node src\gem\telegram-gem-bridge.cjs
 ```
 
-### 启动本地记忆管理器
+### 本地记忆页面
 
-```cmd
-start-independent-memory-manager.cmd
-```
-
-然后打开：
-
-```text
-http://127.0.0.1:4142/
-```
+旧的本地记忆管理页面已经删除。LMC 和记忆编译脚本暂时保留作参考与运行时组件，但不再把旧 memory 页面当作记忆系统入口。
 
 ### 启动普通 Gemini CLI
 
@@ -163,7 +155,6 @@ Telegram 主 bot 的 prompt 由 `telegram-gem-bridge.cjs` 组装，并通过 Gem
 | `scripts/rebuild-chat-vectors-v2.cjs` | 一次性重建 V2 索引；会复用旧向量，只有新增/变化片段才重新嵌入 |
 | `src/memory/shared-memory-sync.cjs` | Telegram 可读记忆编译 |
 | `src/memory/core-memory-store.cjs` | 文件型独立记忆存储 |
-| `src/memory/memory-manager.cjs` | 本地记忆管理 Web 服务 |
 | `src/adapters/cloud-memory-client.cjs` | 云端记忆 API 客户端 |
 | `src/gem/gemini-cli-openai-bridge.cjs` | OpenAI 兼容接口桥接 |
 | `src/gem/telegram-mcp-fixed.cjs` | Telegram MCP 服务端 |
@@ -197,7 +188,6 @@ node --check src/memory/memory-context.cjs
 node --check src/memory/chat-vector-memory-v2.cjs
 node --check scripts/rebuild-chat-vectors-v2.cjs
 node --check src/memory/shared-memory-sync.cjs
-node --check src/memory/memory-manager.cjs
 node src/memory/lmc-status.cjs
 node src/memory/memory-ingest.cjs --source cli
 node src/memory/memory-ingest.cjs --source telegram
