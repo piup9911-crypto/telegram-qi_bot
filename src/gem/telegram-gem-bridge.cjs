@@ -4993,17 +4993,6 @@ function isMessageNotModifiedError(error) {
   );
 }
 
-function sendMessageWithTimeout(bot, chatId, text, options) {
-  return Promise.race([
-    bot.sendMessage(chatId, text, options),
-    new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error("Telegram sendMessage timed out after 300 seconds."));
-      }, 300000);
-    })
-  ]);
-}
-
 function telegramCallWithTimeout(promise, label, timeoutMs = 300000) {
   let timer = null;
   const timeout = new Promise((_, reject) => {
@@ -5020,19 +5009,58 @@ function telegramCallWithTimeout(promise, label, timeoutMs = 300000) {
   });
 }
 
+function isRetriableTelegramTransportError(error) {
+  const message = error && error.message ? error.message : String(error || "");
+  return /socket hang up|ECONNRESET|ETIMEDOUT|ESOCKETTIMEDOUT|EAI_AGAIN|ECONNREFUSED|EFATAL|tunneling socket|TLS connection|Premature close|timeout|timed out/i.test(message);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function telegramCallWithRetry(label, createPromise, options = {}) {
+  const maxAttempts = Math.max(1, Number(options.maxAttempts || 2));
+  const timeoutMs = Number(options.timeoutMs || 300000);
+  const retryDelayMs = Number(options.retryDelayMs || 1500);
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await telegramCallWithTimeout(createPromise(), label, timeoutMs);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts || !isRetriableTelegramTransportError(error)) {
+        throw error;
+      }
+      log("retrying telegram API call once after transport error", {
+        label,
+        attempt,
+        maxAttempts,
+        error: error && error.message ? error.message : String(error)
+      });
+      await sleep(retryDelayMs);
+    }
+  }
+
+  throw lastError;
+}
+
+function sendMessageWithTimeout(bot, chatId, text, options) {
+  return telegramCallWithRetry(
+    "Telegram sendMessage",
+    () => bot.sendMessage(chatId, text, options)
+  );
+}
+
 function editMessageWithTimeout(bot, chatId, messageId, text, options) {
-  return Promise.race([
-    bot.editMessageText(text, {
+  return telegramCallWithRetry(
+    "Telegram editMessageText",
+    () => bot.editMessageText(text, {
       ...(options || {}),
       chat_id: chatId,
       message_id: messageId
-    }),
-    new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error("Telegram editMessageText timed out after 300 seconds."));
-      }, 300000);
     })
-  ]).catch((error) => {
+  ).catch((error) => {
     if (isMessageNotModifiedError(error)) {
       return null;
     }
