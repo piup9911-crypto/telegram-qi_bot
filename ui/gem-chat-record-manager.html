@@ -538,32 +538,6 @@
         justify-content: flex-end;
       }
 
-      .prepack-turn-control {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-height: 34px;
-        border: 1px solid var(--line);
-        border-radius: var(--button-radius);
-        background: var(--button-bg);
-        padding: 0 8px;
-        color: var(--muted);
-        font-size: 13px;
-        white-space: nowrap;
-      }
-
-      .prepack-turn-control input {
-        width: 62px;
-        min-height: 26px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: var(--panel-strong);
-        color: var(--ink);
-        padding: 0 6px;
-        font: inherit;
-        font-size: 13px;
-      }
-
       button {
         min-height: 34px;
         border: 1px solid var(--line);
@@ -1423,17 +1397,6 @@
           justify-content: flex-start;
         }
 
-        .prepack-turn-control {
-          min-height: 32px;
-          font-size: 12px;
-        }
-
-        .prepack-turn-control input {
-          width: 56px;
-          min-height: 24px;
-          font-size: 12px;
-        }
-
         button {
           min-height: 32px;
           padding: 0 9px;
@@ -1579,11 +1542,6 @@
             </div>
           </div>
           <div class="actions">
-            <label class="prepack-turn-control" title="删除记录后创建新 Antigravity 窗口时导入的最近 user 轮数">
-              <span>新窗轮数</span>
-              <input id="prepackTurnsInput" type="number" min="1" max="200" step="1" value="35" aria-label="新窗口导入最近轮数" />
-            </label>
-            <button id="savePrepackTurnsButton" type="button">保存轮数</button>
             <button id="themeToggleButton" type="button" aria-pressed="false">桃子汽水</button>
             <button id="refreshButton" type="button">刷新</button>
             <button id="deleteButton" class="danger" type="button">永久删除选中</button>
@@ -1628,12 +1586,7 @@
         searchRequest: 0,
         conversationNavItems: [],
         conversationNavGroups: [],
-        activeConversationNavIndex: -1,
-        prepackSettings: {
-          prepackRecentTurns: 35,
-          minPrepackRecentTurns: 1,
-          maxPrepackRecentTurns: 200
-        }
+        activeConversationNavIndex: -1
       };
 
       const sidebar = document.getElementById("sidebar");
@@ -1648,8 +1601,6 @@
       const sidebarToggleButton = document.getElementById("sidebarToggleButton");
       const sidebarCloseButton = document.getElementById("sidebarCloseButton");
       const sidebarBackdrop = document.getElementById("sidebarBackdrop");
-      const prepackTurnsInput = document.getElementById("prepackTurnsInput");
-      const savePrepackTurnsButton = document.getElementById("savePrepackTurnsButton");
       const themeToggleButton = document.getElementById("themeToggleButton");
       const refreshButton = document.getElementById("refreshButton");
       const deleteButton = document.getElementById("deleteButton");
@@ -1778,46 +1729,6 @@
       const API_BASE = window.location.pathname.startsWith("/chat-records-live")
         ? "/chat-records-live"
         : "";
-
-      function normalizePrepackTurns(value) {
-        const min = state.prepackSettings.minPrepackRecentTurns || 1;
-        const max = state.prepackSettings.maxPrepackRecentTurns || 200;
-        const parsed = Number.parseInt(value, 10);
-        const base = Number.isFinite(parsed)
-          ? parsed
-          : state.prepackSettings.prepackRecentTurns || 35;
-        return Math.min(max, Math.max(min, base));
-      }
-
-      function renderPrepackSettings() {
-        prepackTurnsInput.min = String(state.prepackSettings.minPrepackRecentTurns || 1);
-        prepackTurnsInput.max = String(state.prepackSettings.maxPrepackRecentTurns || 200);
-        prepackTurnsInput.value = String(state.prepackSettings.prepackRecentTurns || 35);
-        savePrepackTurnsButton.disabled = false;
-      }
-
-      async function loadPrepackSettings() {
-        const data = await fetchJson(`${API_BASE}/api/prepack-settings`);
-        state.prepackSettings = data;
-        renderPrepackSettings();
-      }
-
-      async function savePrepackSettings() {
-        const prepackRecentTurns = normalizePrepackTurns(prepackTurnsInput.value);
-        savePrepackTurnsButton.disabled = true;
-        try {
-          const data = await fetchJson(`${API_BASE}/api/prepack-settings`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prepackRecentTurns })
-          });
-          state.prepackSettings = data;
-          renderPrepackSettings();
-          setFeedback(`新窗口导入轮数已保存：最近 ${data.prepackRecentTurns} 轮`);
-        } finally {
-          savePrepackTurnsButton.disabled = false;
-        }
-      }
 
       function chatSortTime(chat) {
         const value = chat?.latestAt || chat?.updatedAt || "";
@@ -2537,7 +2448,7 @@
           }
         );
         setFeedback(
-          `永久删除完成：${data.changedCount} 条。${data.sessionIdReset ? "已备份并重置 sessionId。" : "已备份归档窗口。"}`
+          `永久删除完成：${data.changedCount} 条。已备份，本地记录已更新。`
         );
         await loadChats();
       }
@@ -2742,13 +2653,6 @@
         requestAnimationFrame(scrollActiveConversationNavItemIntoView);
       });
 
-      savePrepackTurnsButton.addEventListener("click", () => savePrepackSettings().catch(reportError));
-      prepackTurnsInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          savePrepackSettings().catch(reportError);
-        }
-      });
       themeToggleButton.addEventListener("click", toggleTheme);
       refreshButton.addEventListener("click", () => loadChats().catch(reportError));
       searchInput.addEventListener("input", scheduleSearch);
@@ -2830,7 +2734,6 @@
       setTheme(localStorage.getItem("gemChatRecordsThemeChoice"));
       setSidebarOpen(false);
       showNagiLoader();
-      loadPrepackSettings().catch(reportError);
       loadChats().catch((error) => {
         hideNagiLoader();
         reportError(error);

@@ -10,15 +10,6 @@ const {
   parseOperationsText,
   parseRebuildTablesText
 } = require("./rp-runtime/memory-tables.cjs");
-const {
-  buildAntigravitySidecarBootstrapPrompt,
-  collectRecentChatHistory
-} = require("../adapters/sidecar-bootstrap.cjs");
-const {
-  startCascade,
-  sendCascadeMessage
-} = require("../adapters/antigravity-sidecar-adapter.cjs");
-const { pathToFileURL } = require("url");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 
@@ -1093,12 +1084,6 @@ function normalizeChatState(chatId, raw) {
     syncedStepIdentities: Array.isArray(state.syncedStepIdentities)
       ? state.syncedStepIdentities.slice(0, 40000)
       : [],
-    prepackToken: state.prepackToken || "",
-    prepackStatus: state.prepackStatus || "",
-    prepackRequestedAt: state.prepackRequestedAt || "",
-    prepackStartedAt: state.prepackStartedAt || "",
-    prepackCompletedAt: state.prepackCompletedAt || "",
-    prepackError: state.prepackError || "",
     lastUserMessage: state.lastUserMessage || "",
     lastAssistantMessage: state.lastAssistantMessage || "",
     thinkingMode: state.thinkingMode || "hidden",
@@ -1207,138 +1192,20 @@ function recomputeLastMessages(state) {
   state.lastAssistantMessage = lastAssistant ? lastAssistant.content || "" : "";
 }
 
-function markPrepackRequested(state, reason) {
-  const now = new Date().toISOString();
-  state.prepackToken = `edit-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-  state.prepackStatus = "pending";
-  state.prepackRequestedAt = now;
-  state.prepackStartedAt = "";
-  state.prepackCompletedAt = "";
-  state.prepackError = "";
-  state.sessionInvalidatedAt = state.sessionInvalidatedAt || now;
-  state.sessionInvalidationReason = state.sessionInvalidationReason || reason || "chat-edited";
-  // A new Antigravity Cascade must re-sync native steps from scratch. Keeping
-  // old step identities after a local edit can make the fresh trajectory look
-  // already synced and hide the newly seeded window from local records.
-  state.syncedStepIdentities = [];
-}
-
-function clearPrepackState(state) {
-  state.prepackToken = "";
-  state.prepackStatus = "";
-  state.prepackRequestedAt = "";
-  state.prepackStartedAt = "";
-  state.prepackCompletedAt = "";
-  state.prepackError = "";
-}
-
 function saveEditedActiveChat(chatId, state, reason) {
   const backupPath = backupChatFile(chatId, reason);
 
-  // Any edit to active context must start a fresh CLI session. Keep only one
-  // previous session pointer for recovery; otherwise deleted or archived
-  // messages may survive in the CLI provider's private conversation cache.
-  if (state.sessionId) {
-    state.previousSessionId = state.sessionId;
-    state.previousSessionModel = state.sessionModel || "";
-    state.previousSessionInvalidatedAt = new Date().toISOString();
-    state.previousSessionInvalidationReason = reason || "chat-edited";
-  }
-  state.sessionId = null;
-  state.sessionModel = "";
-  state.sessionStartedAt = "";
-  state.sessionUpdatedAt = "";
-  state.sessionInvalidatedAt = new Date().toISOString();
-  state.sessionInvalidationReason = reason || "chat-edited";
   state.updatedAt = new Date().toISOString();
-  if (PREPACK_ENABLED) {
-    markPrepackRequested(state, reason || "chat-edited");
-  } else {
-    clearPrepackState(state);
-    state.syncedStepIdentities = [];
-  }
   recomputeLastMessages(state);
+  state.lastHistoryFingerprint = computeHistoryFingerprintForState(state.history);
   writeJsonFile(getChatPath(chatId), state);
-
-  // Fire-and-forget: open a fresh Antigravity Cascade and seed it with the
-  // cleaned recent history slice (active + archives) so the next Telegram
-  // message lands in a window that already has the trimmed history baked in.
-  // Any error here only means the next message falls back to lazy bootstrap.
-  if (PREPACK_ENABLED && !prepackInFlight.has(chatId)) {
-    schedulePrepackSessionAfterEdit(chatId).catch((error) => {
-      log("prepack session after edit failed", chatId, error && error.message);
-    });
-  }
 
   return backupPath;
 }
 
-// Current policy: deleting/archive-editing records eagerly opens a fresh
-// Antigravity Cascade seeded with only the recent slice.
-const PREPACK_ENABLED = String(process.env.GEM_CHAT_RECORD_PREPACK_ENABLED || "1") !== "0";
-const PREPACK_TIMEOUT_MS = Math.max(
-  60000,
-  Number.parseInt(process.env.GEM_CHAT_RECORD_PREPACK_TIMEOUT_MS || "180000", 10) || 180000
-);
-const PREPACK_RECENT_TURNS_MIN = 1;
-const PREPACK_RECENT_TURNS_MAX = 200;
-const DEFAULT_PREPACK_RECENT_TURNS = Math.max(
-  1,
-  Number.parseInt(process.env.GEM_CHAT_RECORD_PREPACK_TURNS || "35", 10) || 35
-);
-const PREPACK_WORKSPACE_URI = pathToFileURL(path.join(ROOT, "bridge-workspace")).href;
-const prepackInFlight = new Map();
-
-function normalizePrepackRecentTurns(value, fallback = DEFAULT_PREPACK_RECENT_TURNS) {
-  const parsed = Number.parseInt(value, 10);
-  const base = Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-  return Math.min(PREPACK_RECENT_TURNS_MAX, Math.max(PREPACK_RECENT_TURNS_MIN, base));
-}
-
-function getPrepackRecentTurns() {
-  const settings = readContextSettingsFile();
-  return normalizePrepackRecentTurns(
-    settings.chatRecords && settings.chatRecords.prepackRecentTurns
-  );
-}
-
-function prepackSettingsPayload() {
-  return {
-    ok: true,
-    prepackEnabled: PREPACK_ENABLED,
-    prepackRecentTurns: getPrepackRecentTurns(),
-    defaultPrepackRecentTurns: DEFAULT_PREPACK_RECENT_TURNS,
-    minPrepackRecentTurns: PREPACK_RECENT_TURNS_MIN,
-    maxPrepackRecentTurns: PREPACK_RECENT_TURNS_MAX
-  };
-}
-
-async function handlePrepackSettings(req, res) {
-  if (req.method === "GET") {
-    sendJson(res, 200, prepackSettingsPayload());
-    return;
-  }
-  if (req.method !== "POST") {
-    sendError(res, 405, "Method not allowed.");
-    return;
-  }
-  const payload = await readBody(req);
-  const nextTurns = normalizePrepackRecentTurns(payload.prepackRecentTurns);
-  const settings = readContextSettingsFile();
-  settings.chatRecords = {
-    ...(settings.chatRecords && typeof settings.chatRecords === "object"
-      ? settings.chatRecords
-      : {}),
-    prepackRecentTurns: nextTurns,
-    updatedAt: new Date().toISOString()
-  };
-  writeContextSettingsFile(settings);
-  sendJson(res, 200, prepackSettingsPayload());
-}
-
 // Mirrors telegram-gem-bridge.cjs computeHistoryFingerprint: a stable sha1
-// over role/content/at so the bridge keeps recognizing the prepack'd session
-// instead of invalidating it as "history-changed".
+// over role/content/at so record edits can stay local without forcing a new
+// Antigravity Cascade.
 function computeHistoryFingerprintForState(history) {
   if (!Array.isArray(history) || history.length === 0) return "";
   const hash = crypto.createHash("sha1");
@@ -1350,145 +1217,6 @@ function computeHistoryFingerprintForState(history) {
     hash.update(`${role}\u0001${content}\u0001${at}\u0002`);
   }
   return hash.digest("hex");
-}
-
-async function schedulePrepackSessionAfterEdit(chatId) {
-  // Serialize prepacks per chat. If an earlier prepack is still running,
-  // wait for it to finish; the token check inside doPrepack catches any
-  // intermediate edits.
-  while (prepackInFlight.has(chatId)) {
-    try {
-      await prepackInFlight.get(chatId);
-    } catch {}
-    if (prepackInFlight.get(chatId) === undefined) break;
-  }
-  const promise = doPrepackSessionAfterEdit(chatId);
-  prepackInFlight.set(chatId, promise);
-  try {
-    await promise;
-  } finally {
-    if (prepackInFlight.get(chatId) === promise) prepackInFlight.delete(chatId);
-  }
-}
-
-async function doPrepackSessionAfterEdit(chatId) {
-  const startState = readJsonFile(getChatPath(chatId), null);
-  if (!startState) {
-    log("prepack skipped: chat state missing", chatId);
-    return;
-  }
-  if (startState.sessionId) {
-    // Already has a live session somehow, nothing to prepack.
-    return;
-  }
-  const startToken = startState.prepackToken || null;
-  if (!startToken) {
-    return;
-  }
-  startState.prepackStatus = "running";
-  startState.prepackStartedAt = new Date().toISOString();
-  startState.prepackError = "";
-  writeJsonFile(getChatPath(chatId), startState);
-  const prepackRecentTurns = getPrepackRecentTurns();
-  const history = collectRecentChatHistory(chatId, {
-    chatStateDir: CHAT_STATE_DIR,
-    archiveDir: ARCHIVE_DIR,
-    maxTurns: prepackRecentTurns
-  });
-  let bootstrapPrompt;
-  try {
-    bootstrapPrompt = buildAntigravitySidecarBootstrapPrompt(chatId, {
-      chatStateDir: CHAT_STATE_DIR,
-      archiveDir: ARCHIVE_DIR,
-      maxTurns: prepackRecentTurns
-    });
-  } catch (error) {
-    log("prepack skipped: failed to build bootstrap prompt", chatId, error && error.message);
-    markPrepackFailed(chatId, startToken, error);
-    return;
-  }
-  if (history.length === 0) {
-    log("prepack skipped: history empty after edit", chatId);
-    markPrepackFailed(chatId, startToken, new Error("history empty after edit"));
-    return;
-  }
-
-  let cascadeId;
-  try {
-    cascadeId = await startCascade({ workspaceUris: [PREPACK_WORKSPACE_URI] });
-  } catch (error) {
-    log("prepack failed: startCascade", chatId, error && error.message);
-    markPrepackFailed(chatId, startToken, error);
-    return;
-  }
-  try {
-    await sendCascadeMessage(cascadeId, bootstrapPrompt, undefined, {
-      timeoutMs: PREPACK_TIMEOUT_MS
-    });
-  } catch (error) {
-    log("prepack failed: seed message", chatId, error && error.message);
-    markPrepackFailed(chatId, startToken, error);
-    return;
-  }
-
-  const beforeWrite = readJsonFile(getChatPath(chatId), null);
-  if (!beforeWrite) {
-    log("prepack discarded: state disappeared", chatId);
-    return;
-  }
-  if (beforeWrite.sessionId) {
-    log("prepack discarded: session already set", chatId);
-    return;
-  }
-  if (beforeWrite.prepackToken !== startToken) {
-    log("prepack discarded: newer edit interrupted", chatId);
-    return;
-  }
-  const now = new Date().toISOString();
-  beforeWrite.sessionId = cascadeId;
-  beforeWrite.sessionModel = "";
-  beforeWrite.sessionStartedAt = now;
-  beforeWrite.sessionUpdatedAt = now;
-  beforeWrite.sessionInvalidatedAt = "";
-  beforeWrite.sessionInvalidationReason = "";
-  beforeWrite.prepackToken = "";
-  beforeWrite.prepackStatus = "complete";
-  beforeWrite.prepackCompletedAt = now;
-  beforeWrite.prepackError = "";
-  // The bridge invalidates a session when the history fingerprint no longer
-  // matches what was stored when the session was created. The prepack seeded
-  // the new Cascade with exactly this on-disk history, so record the matching
-  // fingerprint here to keep the bridge from throwing the prepack away.
-  beforeWrite.lastHistoryFingerprint = computeHistoryFingerprintForState(
-    beforeWrite.history
-  );
-  beforeWrite.updatedAt = now;
-  writeJsonFile(getChatPath(chatId), beforeWrite);
-  log("prepack ok", chatId, history.length, `recentTurns=${prepackRecentTurns}`, cascadeId);
-}
-
-function markPrepackFailed(chatId, token, error) {
-  const state = readJsonFile(getChatPath(chatId), null);
-  if (!state || state.prepackToken !== token || state.sessionId) return;
-  state.prepackStatus = "failed";
-  state.prepackError = error && error.message ? error.message : String(error || "unknown");
-  state.prepackCompletedAt = new Date().toISOString();
-  writeJsonFile(getChatPath(chatId), state);
-}
-
-function schedulePendingPrepackSessions() {
-  let scheduled = 0;
-  for (const filePath of listChatFiles()) {
-    const chatId = path.basename(filePath, ".json");
-    const state = readJsonFile(filePath, null);
-    if (!state || state.sessionId || !state.prepackToken) continue;
-    if (!PREPACK_ENABLED) continue;
-    schedulePrepackSessionAfterEdit(chatId).catch((error) => {
-      log("pending prepack session failed", chatId, error && error.message);
-    });
-    scheduled += 1;
-  }
-  if (scheduled > 0) log("pending prepack sessions scheduled", scheduled);
 }
 
 function backupRpChatFile(storageChatId, reason) {
@@ -1961,9 +1689,8 @@ async function handleDeleteMessages(req, res, chatId, archiveId = "") {
     : saveEditedActiveChat(chatId, state, "delete-messages");
   let activeBackupPath = null;
   if (archiveId) {
-    // Archive edits also change the "full chat history" used to seed the next
-    // Antigravity window, so the active Cascade must be invalidated/prepacked
-    // even when the active JSON file itself was not edited.
+    // Archive edits affect the local record set. Keep the active Antigravity
+    // session untouched; this page no longer creates replacement Cascades.
     activeBackupPath = saveEditedActiveChat(
       chatId,
       loadChatState(chatId),
@@ -1975,7 +1702,7 @@ async function handleDeleteMessages(req, res, chatId, archiveId = "") {
     action: "delete-messages",
     changedCount,
     backupPath: [backupPath, activeBackupPath].filter(Boolean).join("; "),
-    sessionIdReset: true
+    sessionIdReset: false
   });
 }
 
@@ -2612,10 +2339,6 @@ function route(req, res) {
         await handleChats(req, res);
         return;
       }
-      if (parts[0] === "api" && parts[1] === "prepack-settings" && parts.length === 2) {
-        await handlePrepackSettings(req, res);
-        return;
-      }
       if (parts[0] === "api" && parts[1] === "ingest" && parts[2] === "telegram-rp" && req.method === "POST") {
         await handleIngestTelegramRp(req, res);
         return;
@@ -2797,5 +2520,4 @@ ensureChatStateDir();
 http.createServer(route).listen(PORT, HOST, () => {
   log(`listening on http://${HOST}:${PORT}`);
   log(`chat state directory: ${CHAT_STATE_DIR}`);
-  schedulePendingPrepackSessions();
 });

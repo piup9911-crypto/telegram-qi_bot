@@ -1732,12 +1732,6 @@ function normalizeSingleChatState(chatId, rawState) {
     syncedStepIdentities: Array.isArray(state.syncedStepIdentities)
       ? state.syncedStepIdentities.slice(0, 40000)
       : [],
-    prepackToken: state.prepackToken || "",
-    prepackStatus: state.prepackStatus || "",
-    prepackRequestedAt: state.prepackRequestedAt || "",
-    prepackStartedAt: state.prepackStartedAt || "",
-    prepackCompletedAt: state.prepackCompletedAt || "",
-    prepackError: state.prepackError || "",
     updatedAt: state.updatedAt || new Date().toISOString()
   };
 }
@@ -1842,12 +1836,6 @@ function invalidateChatSession(state, reason) {
   state.sessionUpdatedAt = "";
   state.sessionInvalidatedAt = now;
   state.sessionInvalidationReason = reason || "session-invalidated";
-  state.prepackToken = "";
-  state.prepackStatus = "";
-  state.prepackRequestedAt = "";
-  state.prepackStartedAt = "";
-  state.prepackCompletedAt = "";
-  state.prepackError = "";
   state.syncedStepIdentities = [];
 }
 
@@ -1869,10 +1857,6 @@ function saveSessionFromResult(state, result, modelId) {
   state.sessionUpdatedAt = now;
   state.sessionInvalidatedAt = "";
   state.sessionInvalidationReason = "";
-  state.prepackToken = "";
-  state.prepackStatus = "";
-  state.prepackCompletedAt = "";
-  state.prepackError = "";
   if (isNewSession) {
     // New Cascade = new trajectory. Drop cross-cascade step identities so
     // the next native sync doesn't wrongly skip everything.
@@ -2166,8 +2150,8 @@ function getHistorySeedRecentTurns() {
   const configured =
     settings &&
     settings.chatRecords &&
-    settings.chatRecords.prepackRecentTurns !== undefined
-      ? settings.chatRecords.prepackRecentTurns
+    settings.chatRecords.historySeedRecentTurns !== undefined
+      ? settings.chatRecords.historySeedRecentTurns
       : DEFAULT_HISTORY_SEED_RECENT_TURNS;
   return clampInteger(
     configured,
@@ -2532,42 +2516,6 @@ function buildPromptHistory(chatId, activeHistory) {
 function saveChatState(chatState) {
   const statePath = getChatStatePath(chatState.chatId);
   const diskState = readJson(statePath, {});
-
-  // Chat-record edits write a durable prepack token before the manager seeds a
-  // fresh Antigravity Cascade. If an older in-flight Telegram reply saves its
-  // stale in-memory state after that edit, it must not resurrect the deleted
-  // history or old session. Only a state that carries the same token (loaded
-  // after the edit) may continue writing during the pending prepack window.
-  if (
-    diskState &&
-    diskState.prepackToken &&
-    !diskState.sessionId &&
-    chatState.prepackToken !== diskState.prepackToken
-  ) {
-    log("saveChatState skipped: disk prepack pending is newer", {
-      chatId: chatState.chatId,
-      prepackToken: diskState.prepackToken,
-      incomingSessionId: chatState.sessionId || null
-    });
-    return;
-  }
-  const prepackCompletedAt = Date.parse(diskState.prepackCompletedAt || "");
-  if (
-    diskState &&
-    diskState.prepackStatus === "complete" &&
-    diskState.sessionId &&
-    chatState.sessionId &&
-    chatState.sessionId !== diskState.sessionId &&
-    Number.isFinite(prepackCompletedAt) &&
-    Date.now() - prepackCompletedAt < 10 * 60 * 1000
-  ) {
-    log("saveChatState skipped: completed prepack session is newer", {
-      chatId: chatState.chatId,
-      diskSessionId: diskState.sessionId,
-      incomingSessionId: chatState.sessionId
-    });
-    return;
-  }
 
   const state = normalizeSingleChatState(chatState.chatId, chatState);
 
