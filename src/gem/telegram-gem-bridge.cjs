@@ -257,6 +257,10 @@ const TELEGRAM_POLLING_ERROR_LOG_INTERVAL_MS = Math.max(
   1000,
   Number.parseInt(process.env.BRIDGE_TELEGRAM_POLLING_ERROR_LOG_INTERVAL_MS || "10000", 10) || 10000
 );
+const TELEGRAM_POLLING_CONFLICT_GRACE_MS = Math.max(
+  0,
+  Number.parseInt(process.env.BRIDGE_TELEGRAM_POLLING_CONFLICT_GRACE_MS || "60000", 10) || 60000
+);
 const TELEGRAM_STARTUP_CALL_TIMEOUT_MS = Math.max(
   3000,
   Number.parseInt(process.env.BRIDGE_TELEGRAM_STARTUP_CALL_TIMEOUT_MS || "15000", 10) || 15000
@@ -7132,6 +7136,19 @@ async function startBridge() {
 
   const stopTelegramPollingForPersistentConflict = async (reason) => {
     if (!TELEGRAM_POLLING_STOP_ON_PERSISTENT_CONFLICT || telegramPollingStoppedForConflict) {
+      return;
+    }
+    const restartAgeMs = lastPollingRestartAt > 0 ? Date.now() - lastPollingRestartAt : Infinity;
+    if (
+      restartAgeMs >= 0 &&
+      restartAgeMs < TELEGRAM_POLLING_CONFLICT_GRACE_MS &&
+      isTelegramGetUpdatesConflict(reason)
+    ) {
+      log("telegram polling conflict ignored during restart grace", {
+        reason,
+        restartAgeMs,
+        graceMs: TELEGRAM_POLLING_CONFLICT_GRACE_MS
+      });
       return;
     }
     telegramPollingStoppedForConflict = true;
