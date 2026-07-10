@@ -187,7 +187,7 @@ const CODEX_CMD = process.env.CODEX_BRIDGE_COMMAND || DEFAULT_CODEX_CMD;
 const CODEX_BRIDGE_ENGINE = String(process.env.CODEX_BRIDGE_ENGINE || "exec")
   .trim()
   .toLowerCase();
-const CODEX_MODEL = process.env.CODEX_BRIDGE_MODEL || "gpt-5.5";
+const CODEX_MODEL = process.env.CODEX_BRIDGE_MODEL || "gpt-5.6-terra";
 const CODEX_REASONING_EFFORT =
   process.env.CODEX_BRIDGE_REASONING_EFFORT || "medium";
 const CODEX_EXEC_WORK_DIR = path.resolve(

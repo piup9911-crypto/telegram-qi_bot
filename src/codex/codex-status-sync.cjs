@@ -122,7 +122,7 @@ function buildStatus() {
         online: processExists(qiPid),
         pid: qiPid,
         lockFile: fs.existsSync(QI_LOCK_PATH),
-        model: process.env.CODEX_BRIDGE_MODEL || "gpt-5.5",
+        model: process.env.CODEX_BRIDGE_MODEL || "gpt-5.6-terra",
         sandbox: process.env.CODEX_BRIDGE_SANDBOX || "danger-full-access",
         reasoning: process.env.CODEX_BRIDGE_REASONING_EFFORT || "medium",
         lastLine: lastNonEmptyLine(QI_LOG_PATH)
