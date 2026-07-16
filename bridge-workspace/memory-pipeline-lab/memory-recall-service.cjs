@@ -2,9 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const {
-  createUnifiedMemoryRetriever,
-  replaceDynamicRegion
+  createUnifiedMemoryRetriever
 } = require('./memory-retriever-unified.cjs');
+const {
+  atomicWriteDynamicContext,
+  createMemoryContextWriter
+} = require('./memory-context-writer.cjs');
 
 const DEFAULT_DB_PATH = path.join(__dirname, 'memory-schema-v2-complete.sqlite');
 const DEFAULT_GEMINI_MD_PATH = path.join(__dirname, '..', 'GEMINI.md');
@@ -46,6 +49,11 @@ function validateRequest(input = {}) {
   if (topicAnchor.length > 160) throw new Error('topic_anchor must be 160 characters or fewer');
   const originalText = String(input.original_text || query).trim();
   if (originalText.length > 1200) throw new Error('original_text must be 1200 characters or fewer');
+  const sessionId = String(input.session_id || 'telegram-main').trim() || 'telegram-main';
+  if (sessionId.length > 160) throw new Error('session_id must be 160 characters or fewer');
+  const turnId = String(input.turn_id || crypto.randomUUID()).trim();
+  if (!turnId) throw new Error('turn_id cannot be empty');
+  if (turnId.length > 200) throw new Error('turn_id must be 200 characters or fewer');
 
   return {
     query,
@@ -53,7 +61,8 @@ function validateRequest(input = {}) {
     subject,
     topicAnchor,
     originalText,
-    turnId: String(input.turn_id || crypto.randomUUID()).trim(),
+    sessionId,
+    turnId,
     maxChars: Math.max(1200, Math.min(9000, Number(input.max_chars) || 6000))
   };
 }
@@ -92,22 +101,6 @@ function summarizeRaw(item) {
   };
 }
 
-function writeDynamicContext(geminiPath, dynamicBlock) {
-  const current = fs.existsSync(geminiPath) ? fs.readFileSync(geminiPath, 'utf8') : '';
-  const next = replaceDynamicRegion(current, dynamicBlock);
-  if (next === current) return { changed: false, path: geminiPath, chars: dynamicBlock.length };
-  fs.mkdirSync(path.dirname(geminiPath), { recursive: true });
-  const tempPath = `${geminiPath}.memory-recall-${process.pid}-${Date.now()}.tmp`;
-  fs.writeFileSync(tempPath, next, 'utf8');
-  try {
-    fs.renameSync(tempPath, geminiPath);
-  } catch (error) {
-    try { fs.unlinkSync(tempPath); } catch {}
-    throw error;
-  }
-  return { changed: true, path: geminiPath, chars: dynamicBlock.length };
-}
-
 function storageFingerprint(dbPath) {
   return [dbPath, `${dbPath}-wal`]
     .map((filePath) => {
@@ -125,6 +118,7 @@ function createMemoryRecallService(options = {}) {
   const dbPath = options.dbPath || process.env.AQI_MEMORY_DB_PATH || DEFAULT_DB_PATH;
   const geminiPath = options.geminiPath || process.env.AQI_MEMORY_GEMINI_MD_PATH || DEFAULT_GEMINI_MD_PATH;
   const writeContext = options.writeContext ?? envFlag('AQI_MEMORY_WRITE_CONTEXT', false);
+  const contextWriter = createMemoryContextWriter({ geminiPath });
   let retrieverPromise = null;
   let retrieverFingerprint = null;
 
@@ -156,16 +150,38 @@ function createMemoryRecallService(options = {}) {
         embedding_model_loaded: false
       };
     },
+    async beginTurn(input = {}) {
+      const turnId = String(input.turn_id || crypto.randomUUID()).trim();
+      const sessionId = String(input.session_id || 'telegram-main').trim() || 'telegram-main';
+      if (turnId.length > 200) throw new Error('turn_id must be 200 characters or fewer');
+      if (sessionId.length > 160) throw new Error('session_id must be 160 characters or fewer');
+      if (!writeContext) {
+        return {
+          enabled: false,
+          changed: false,
+          session_id: sessionId,
+          turn_id: turnId
+        };
+      }
+      const { result } = await contextWriter.beginTurn({ sessionId, turnId });
+      return { enabled: true, ...result };
+    },
     async recall(input = {}) {
       const request = validateRequest(input);
+      const writeToken = writeContext
+        ? contextWriter.claim({ sessionId: request.sessionId, turnId: request.turnId })
+        : null;
       if (requiresClarification(request)) {
+        const contextWrite = writeContext
+          ? { enabled: true, ...await contextWriter.clear(writeToken) }
+          : { enabled: false, changed: false };
         return {
           status: 'needs_clarification',
           reason: 'vague_reference_without_topic_anchor',
           message: '当前问题包含“那个/那件事”等指代，但没有能唯一定位的主题。请先结合最近上下文确定 topic_anchor；仍不确定就直接向用户追问，不要宽泛搜索历史。',
           query: request.query,
           operation: request.operation,
-          context_write: { enabled: writeContext, changed: false }
+          context_write: contextWrite
         };
       }
 
@@ -184,7 +200,7 @@ function createMemoryRecallService(options = {}) {
       if (writeContext) {
         contextWrite = {
           enabled: true,
-          ...writeDynamicContext(geminiPath, found ? result.dynamic_block : '')
+          ...await contextWriter.apply(writeToken, found ? result.dynamic_block : '')
         };
       }
 
@@ -230,5 +246,5 @@ module.exports = {
   createMemoryRecallService,
   requiresClarification,
   validateRequest,
-  writeDynamicContext
+  writeDynamicContext: atomicWriteDynamicContext
 };

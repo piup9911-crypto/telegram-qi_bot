@@ -3,6 +3,60 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const { createMemoryRecallService } = require('./memory-recall-service.cjs');
+const {
+  EMPTY_DYNAMIC_BLOCK,
+  createMemoryContextWriter
+} = require('./memory-context-writer.cjs');
+
+async function testContextWriter() {
+  const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aqi-memory-writer-'));
+  const geminiPath = path.join(fixtureDir, 'GEMINI.md');
+  const stablePrefix = '# Stable persona\n\nDo not change this text.\n';
+  const stableSuffix = '\n\n# Stable footer\nKeep this too.\n';
+  fs.writeFileSync(
+    geminiPath,
+    `${stablePrefix}<!-- MEMORY_CONTEXT_START -->\ninitial evidence\n<!-- MEMORY_CONTEXT_END -->${stableSuffix}`,
+    'utf8'
+  );
+
+  const writer = createMemoryContextWriter({ geminiPath });
+  const oldToken = writer.claim({ sessionId: 'telegram-test', turnId: 'turn-old' });
+  const newToken = writer.claim({ sessionId: 'telegram-test', turnId: 'turn-new' });
+  const oldResult = await writer.apply(
+    oldToken,
+    '<!-- MEMORY_CONTEXT_START -->\nold evidence\n<!-- MEMORY_CONTEXT_END -->'
+  );
+  const newResult = await writer.apply(
+    newToken,
+    '<!-- MEMORY_CONTEXT_START -->\nnew evidence\n<!-- MEMORY_CONTEXT_END -->'
+  );
+  const afterWrite = fs.readFileSync(geminiPath, 'utf8');
+  const { result: clearResult } = await writer.beginTurn({
+    sessionId: 'telegram-test',
+    turnId: 'turn-clear'
+  });
+  const afterClear = fs.readFileSync(geminiPath, 'utf8');
+
+  let invalidBlockRejected = false;
+  const invalidToken = writer.claim({ sessionId: 'telegram-test', turnId: 'turn-invalid' });
+  try {
+    await writer.apply(invalidToken, '<!-- MEMORY_CONTEXT_START -->\nmissing end');
+  } catch {
+    invalidBlockRejected = true;
+  }
+
+  fs.rmSync(fixtureDir, { recursive: true, force: true });
+  return {
+    old_write_rejected_as_stale: oldResult.stale === true && oldResult.changed === false,
+    newest_write_applied: newResult.stale === false && afterWrite.includes('new evidence') && !afterWrite.includes('old evidence'),
+    stable_content_preserved: afterWrite.startsWith(stablePrefix)
+      && afterWrite.endsWith(stableSuffix)
+      && afterClear.startsWith(stablePrefix)
+      && afterClear.endsWith(stableSuffix),
+    clear_keeps_empty_region: clearResult.cleared === true && afterClear.includes(EMPTY_DYNAMIC_BLOCK) && !afterClear.includes('new evidence'),
+    invalid_block_rejected: invalidBlockRejected
+  };
+}
 
 async function testService() {
   const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aqi-memory-recall-'));
@@ -28,6 +82,11 @@ async function testService() {
     subject: 'user',
     turn_id: 'test-latest-hungry'
   });
+  const ambiguousAfterWrite = await service.recall({
+    query: '上次那件事后来怎么样了？',
+    original_text: '上次那件事后来怎么样了？',
+    turn_id: 'test-ambiguous-after-write'
+  });
   const written = fs.readFileSync(geminiPath, 'utf8');
   await service.close();
   fs.rmSync(fixtureDir, { recursive: true, force: true });
@@ -42,6 +101,8 @@ async function testService() {
     quote_operation: quote.operation,
     quote_retrieval_mode: quote.retrieval_mode,
     quote_raw_count: quote.raw.length,
+    clarification_cleared_context: ambiguousAfterWrite.status === 'needs_clarification'
+      && ambiguousAfterWrite.context_write?.cleared === true,
     wrote_dynamic_region: written.includes('<!-- MEMORY_CONTEXT_START -->'),
     context_has_end_marker: written.includes('<!-- MEMORY_CONTEXT_END -->')
   };
@@ -100,6 +161,7 @@ function testMcpProtocol() {
 async function main() {
   const protocol = await testMcpProtocol();
   const service = await testService();
+  const writer = await testContextWriter();
   const workspaceMcp = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.agents', 'mcp_config.json'), 'utf8'));
   const checks = {
     protocol_initialized: protocol.initialized,
@@ -114,6 +176,12 @@ async function main() {
     raw_fallback_completed: ['found', 'no_match'].includes(service.quote_status),
     ambiguous_raw_query_can_fall_back_to_vector: service.quote_retrieval_mode === 'hybrid_vector',
     ollama_keep_alive_is_ten_minutes: workspaceMcp.mcpServers?.['aqi-memory']?.env?.AQI_OLLAMA_KEEP_ALIVE === '10m',
+    stale_write_cannot_overwrite_new_turn: writer.old_write_rejected_as_stale,
+    newest_dynamic_context_wins: writer.newest_write_applied,
+    stable_gemini_content_is_preserved: writer.stable_content_preserved,
+    empty_result_clears_old_context: writer.clear_keeps_empty_region,
+    malformed_dynamic_block_is_rejected: writer.invalid_block_rejected,
+    clarification_clears_previous_context: service.clarification_cleared_context,
     dynamic_region_consistent: service.latest_status === 'found'
       ? service.has_answer_context && service.wrote_dynamic_region && service.context_has_end_marker
       : !service.has_answer_context
@@ -123,7 +191,8 @@ async function main() {
     passed: Object.values(checks).every(Boolean),
     checks,
     protocol,
-    service
+    service,
+    writer
   };
   const outputPath = path.join(__dirname, 'memory-recall-mcp-test-results.json');
   fs.writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');

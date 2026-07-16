@@ -65,6 +65,10 @@ const tools = [
           type: 'string',
           description: 'Reuse one identifier if making a second recall call for the same user turn.'
         },
+        session_id: {
+          type: 'string',
+          description: 'Conversation/session identifier used to stop an older concurrent recall from overwriting a newer turn. Defaults to telegram-main.'
+        },
         max_chars: {
           type: 'integer',
           minimum: 1200,
