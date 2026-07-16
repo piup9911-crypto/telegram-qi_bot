@@ -18,7 +18,7 @@
 
 ## 当前记忆系统
 
-> **记忆系统完整方案：**  
+> **记忆系统完整方案：**
 > [打开结构思维导图、数据表、召回流程、当前劣势和后续验证安排](./bridge-workspace/memory-pipeline-lab/README.md)
 
 Telegram 主 Bot 已切换到 SQLite 记忆链路：
