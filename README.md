@@ -18,6 +18,9 @@
 
 ## 当前记忆系统
 
+> **记忆系统完整方案：**  
+> [打开结构思维导图、数据表、召回流程、当前劣势和后续验证安排](./bridge-workspace/memory-pipeline-lab/README.md)
+
 Telegram 主 Bot 已切换到 SQLite 记忆链路：
 
 1. 原始 Telegram 聊天先正常写入 `bridge-state/`。
@@ -31,9 +34,9 @@ Telegram 主 Bot 已切换到 SQLite 记忆链路：
 
 详细说明：
 
-- `MEMORY_SYSTEM_OVERVIEW.md`
-- `bridge-workspace/memory-pipeline-lab/MEMORY_RUNTIME_V1.md`
-- `plan.md`（历史需求草稿，只用于追溯目标）
+- [记忆系统概览](./MEMORY_SYSTEM_OVERVIEW.md)
+- [当前真实运行方式](./bridge-workspace/memory-pipeline-lab/MEMORY_RUNTIME_V1.md)
+- [历史需求草稿](./plan.md)（只用于追溯目标）
 
 ## 目录边界
 
