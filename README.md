@@ -44,15 +44,18 @@ Telegram 主 Bot 已切换到 SQLite 记忆链路：
 - `src/memory/`：SQLite 运行时，以及暂时保留的旧 LMC/向量适配。
 - `src/adapters/`：Antigravity、sidecar 和云端适配器。
 - `src/rp/`：聊天记录服务和 RP runtime。
+- `bridge-workspace/memory-pipeline-lab/`：SQLite 记忆源码、召回器、迁移、规则与回归测试。
 - `scripts/`：备份、导入、探测和索引维护脚本。
 - `tests/`：本地回归测试。
 - `ui/`：本地服务使用的页面。
 
 ### 本机数据
 
-以下目录不应提交：
+以下目录或内容不应提交：
 
-- `bridge-state/`、`bridge-home/`、`bridge-workspace/`
+- `bridge-state/`、`bridge-home/`
+- `bridge-workspace/GEMINI.md`、`.agents/mcp_config.json`
+- `bridge-workspace` 中的 SQLite、HTML/JSON 实验结果、媒体和临时文件
 - `codex-bridge-state/`、`codex-bridge-workspace/`
 - `st-bridge-state/`、`st-bridge-home/`、`st-bridge-workspace/`
 - `memory-docs/`

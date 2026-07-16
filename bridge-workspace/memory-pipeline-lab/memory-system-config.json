@@ -1,0 +1,181 @@
+{
+  "version": "memory-system-config-v1",
+  "updated_at": "2026-07-15",
+  "runtime_status": {
+    "recall_connected_to_sidecar": false,
+    "memory_recall_mcp_configured": true,
+    "memory_recall_mcp_protocol_verified": true,
+    "memory_recall_live_model_verified": false,
+    "memory_recall_lexical_fast_path_enabled": true,
+    "memory_recall_vector_fallback_enabled": true,
+    "ollama_embedding_keep_alive": "10m",
+    "bridge_sqlite_raw_ingest_enabled": true,
+    "producer_queue_connected_to_bridge": true,
+    "producer_connected_to_sidecar": false,
+    "external_producer_model_enabled": false,
+    "legacy_lmc_recall_enabled": false,
+    "legacy_lmc_write_enabled": false,
+    "legacy_shared_memory_sync_enabled": false,
+    "dynamic_gemini_md_write_enabled": false,
+    "memory_tool_dynamic_write_configured": true,
+    "local_bge_m3_enabled": true,
+    "jieba_word_index_enabled": true
+  },
+  "producer": {
+    "batch_max_messages": 30,
+    "batch_max_chars": 12000,
+    "max_attempts": 3,
+    "lease_ms": 300000,
+    "retry_base_ms": 30000,
+    "retry_max_ms": 3600000,
+    "segmentation_basis": "content_and_conversation_purpose",
+    "fixed_time_window_enabled": false
+  },
+  "recall": {
+    "dynamic_block_default_max_chars": 6000,
+    "dynamic_block_min_chars": 1200,
+    "max_compound_questions": 4,
+    "exclude_recent_context_minutes": 30,
+    "intent_priority": [
+      "forced_recall",
+      "recent_context_sufficient",
+      "low_signal",
+      "contextual_followup",
+      "current_deadline",
+      "historical_intent",
+      "external_current_lookup",
+      "current_technical_task",
+      "no_answer_requested",
+      "no_memory_intent"
+    ],
+    "ranking_weights": {
+      "semantic": 0.58,
+      "rrf": 0.25,
+      "lexical": 0.07,
+      "evidence_coverage": 0.10
+    },
+    "explicit_only_gate": {
+      "semantic_min": 0.50,
+      "lexical_min": 0.08,
+      "shared_event_semantic_min": 0.40
+    },
+    "event_gate": {
+      "confidence_min": 0.75,
+      "semantic_min": 0.52,
+      "lexical_min": 0.08,
+      "base_score_min": 0.24,
+      "focused_score_min": 0.48,
+      "focused_max_drop": 0.16
+    },
+    "topic_anchor": {
+      "semantic_fallback_min": 0.78,
+      "raw_anchor_min_base": 0.30,
+      "raw_anchor_max_drop": 0.35,
+      "stop_terms": [
+        "时间", "最近", "一次", "最后", "上次", "之前", "以前", "当时",
+        "处理", "修复", "完成", "开始", "发生", "时候", "什么", "怎么",
+        "用户", "自己", "我们", "说", "说过", "提到", "记录"
+      ]
+    },
+    "operations": {
+      "overview": {
+        "label": "某日或某月概览",
+        "primary_layer": "Event Summary",
+        "date_summary_limit": 3,
+        "period_summary_limit": 10
+      },
+      "process": {
+        "label": "项目或事件过程",
+        "primary_layer": "Event Summary + source raw",
+        "min_base": 0.48,
+        "min_semantic": 0.42,
+        "candidate_limit": 4,
+        "max_drop": 0.08,
+        "summary_limit": 2,
+        "source_raw_limit": 6
+      },
+      "exact": {
+        "label": "精确个人事实",
+        "primary_layer": "Fact Timeline / Memory Card",
+        "min_base": 0.48,
+        "min_semantic": 0.50,
+        "durable_limit": 1,
+        "evidence_raw_limit": 2
+      },
+      "quote": {
+        "label": "用户原话",
+        "primary_layer": "Raw Message",
+        "min_base": 0.52,
+        "min_semantic": 0.50,
+        "raw_limit": 1
+      },
+      "inventory": {
+        "label": "偏好或边界清单",
+        "primary_layer": "Memory Card",
+        "min_base": 0.46,
+        "min_semantic": 0.42,
+        "max_drop": 0.18,
+        "card_limit": 6
+      },
+      "timeline_aggregate": {
+        "label": "按日期聚合",
+        "primary_layer": "Raw Message",
+        "min_base": 0.48,
+        "max_drop_from_top": 0.18,
+        "per_day_limit": 1,
+        "day_limit": 8
+      },
+      "first_occurrence": {
+        "label": "首次发生",
+        "primary_layer": "Event Occurrence + source raw",
+        "event_limit": 1,
+        "source_raw_limit": 3
+      },
+      "latest_occurrence": {
+        "label": "最近一次",
+        "primary_layer": "Event Occurrence + source raw",
+        "event_limit": 1,
+        "source_raw_limit": 3
+      },
+      "occurrence_count": {
+        "label": "事件计数",
+        "primary_layer": "Event Occurrence",
+        "event_limit": 12,
+        "source_raw_limit": 4
+      },
+      "occurrence_exists": {
+        "label": "是否发生",
+        "primary_layer": "Event Occurrence + source raw",
+        "event_limit": 1,
+        "source_raw_limit": 3
+      },
+      "commitment": {
+        "label": "约定与目标线索",
+        "primary_layer": "Summary user_goals",
+        "min_base": 0.20,
+        "goal_limit": 6,
+        "per_summary_limit": 2
+      },
+      "history_detail": {
+        "label": "历史细节",
+        "primary_layer": "Raw Message",
+        "min_base": 0.50,
+        "min_semantic": 0.52,
+        "candidate_limit": 2,
+        "max_drop": 0.06,
+        "ambiguity_gap": 0.06,
+        "raw_limit": 1
+      },
+      "mixed": {
+        "label": "普通混合召回",
+        "primary_layer": "Best durable, then raw fallback",
+        "durable_min_base": 0.50,
+        "durable_min_semantic": 0.50,
+        "durable_limit": 1,
+        "raw_min_base": 0.54,
+        "raw_min_semantic": 0.55,
+        "raw_limit": 1
+      }
+    }
+  }
+}

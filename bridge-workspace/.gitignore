@@ -1,0 +1,55 @@
+telegram-media/
+Thumbs.db
+Desktop.ini
+.DS_Store
+node_modules/
+
+# Local runtime data and generated memory-lab artifacts.
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+memory-pipeline-lab/*.html
+memory-pipeline-lab/*-embeddings.json
+memory-pipeline-lab/*-results.json
+memory-pipeline-lab/*results*.json
+memory-pipeline-lab/*-evaluation.json
+memory-pipeline-lab/*-validation.json
+memory-pipeline-lab/*-audit.json
+memory-pipeline-lab/*-cases.json
+memory-pipeline-lab/*-migration.sql
+memory-pipeline-lab/memory-statistics*.json
+memory-pipeline-lab/real-chat-shadow-replay.json
+memory-pipeline-lab/candidate-timelines.json
+memory-pipeline-lab/*-regression.json
+retrieval-lab/evaluation-report.json
+
+# Historical experiment harnesses may contain chat-derived fixtures.
+# Keep the generic production/runtime files tracked and these local-only.
+memory-pipeline-lab/backfill-*.cjs
+memory-pipeline-lab/build-*.cjs
+memory-pipeline-lab/generate-*.cjs
+memory-pipeline-lab/run-*.cjs
+memory-pipeline-lab/hybrid-retriever.cjs
+memory-pipeline-lab/memory-retriever-v2.cjs
+memory-pipeline-lab/query-complete-memory.cjs
+memory-pipeline-lab/raw-message-retriever.cjs
+memory-pipeline-lab/recall-fallback-pipeline.cjs
+memory-pipeline-lab/sync-raw-chat-incremental.cjs
+memory-pipeline-lab/upgrade-memory-schema-v2.cjs
+memory-pipeline-lab/validate-event-recall-v1.cjs
+memory-pipeline-lab/validate-memory-v1-lab.cjs
+retrieval-lab/
+
+# Generic acceptance checks that are safe to keep in Git.
+!memory-pipeline-lab/build-memory-system-config-page.cjs
+!memory-pipeline-lab/run-memory-producer-offline-lab.cjs
+!memory-pipeline-lab/run-memory-recall-mcp-tests.cjs
+!memory-pipeline-lab/run-recall-intent-routing-evaluation.cjs
+
+# Personal workspace scratch files, not part of the memory runtime.
+diagnose.ps1
+notion_config.json
+push_notion_diary.js
+push_notion_diary.ps1
+temp_diary.txt

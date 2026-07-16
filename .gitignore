@@ -16,7 +16,6 @@ codex-bridge.env.bak*
 # Runtime state, logs, chat records, and local memory data.
 bridge-home/
 bridge-state/
-bridge-workspace/
 bridge-workspace-rp/
 codex-bridge-state/
 codex-bridge-workspace/
@@ -26,6 +25,20 @@ st-bridge-home/
 st-bridge-state/
 st-bridge-workspace/
 memory-api-output.json
+
+# bridge-workspace is both a live workspace and the home of the SQLite memory
+# source. Ignore it by default, then keep only portable source, docs, migrations,
+# and the read-only recall skill. GEMINI.md, MCP machine paths, SQLite databases,
+# reports, media, and scratch files remain local.
+bridge-workspace/*
+!bridge-workspace/.gitignore
+!bridge-workspace/.agents/
+bridge-workspace/.agents/*
+!bridge-workspace/.agents/skills/
+bridge-workspace/.agents/skills/*
+!bridge-workspace/.agents/skills/memory-recall/
+!bridge-workspace/.agents/skills/memory-recall/SKILL.md
+!bridge-workspace/memory-pipeline-lab/
 
 # RP local runtime data. Keep RP source files under rp-runtime/ tracked.
 rp-config/*.json

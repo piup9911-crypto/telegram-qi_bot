@@ -1,0 +1,10 @@
+{
+  "name": "memory-pipeline-lab",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Isolated experiments for the replacement memory pipeline.",
+  "type": "commonjs",
+  "dependencies": {
+    "@node-rs/jieba": "2.0.1"
+  }
+}

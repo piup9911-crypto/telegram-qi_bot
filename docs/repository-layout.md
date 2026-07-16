@@ -13,14 +13,20 @@ scripts/      备份、导入、探测和索引维护
 tests/        回归测试
 ui/           本地服务页面
 docs/         当前仍有效的设计与维护说明
+bridge-workspace/
+  memory-pipeline-lab/  SQLite 记忆源码、迁移、规则与测试
+  .agents/skills/       Gem 可使用的只读召回 skill
 ```
 
-本机运行数据位于仓库根目录，但被 `.gitignore` 排除：
+本机运行数据位于仓库根目录或 `bridge-workspace/`，但被 `.gitignore` 排除：
 
 ```text
 bridge-home/
 bridge-state/
-bridge-workspace/
+bridge-workspace/GEMINI.md
+bridge-workspace/.agents/mcp_config.json
+bridge-workspace/memory-pipeline-lab/*.sqlite
+bridge-workspace/memory-pipeline-lab/*.html
 codex-bridge-state/
 codex-bridge-workspace/
 st-bridge-home/
@@ -30,4 +36,4 @@ memory-docs/
 rp-config/
 ```
 
-`bridge-workspace/` 自身包含一个本机 Git 仓库，用于管理 Gem 工作区规则；不要把它当作主仓库源码目录。记忆实验代码目前位于 `bridge-workspace/memory-pipeline-lab/`，正式运行时只依赖其中的数据库、统一召回服务、MCP 和必要索引。
+`bridge-workspace/` 已并入主仓库管理，不再包含独立 `.git`。主仓库只跟踪可移植的记忆源码、文档、迁移和测试；人格文件、MCP 本机绝对路径、正式数据库、聊天衍生报告及其他运行文件继续只保存在本机。
