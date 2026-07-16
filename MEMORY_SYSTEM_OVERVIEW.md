@@ -38,7 +38,7 @@ Telegram 原始聊天
 
 ## 数据层
 
-主要业务表包括：
+八张记忆业务表包括：
 
 - `conversations`
 - `raw_messages`
@@ -48,6 +48,9 @@ Telegram 原始聊天
 - `fact_timelines`
 - `fact_events`
 - `event_occurrences`
+
+另有一张运行辅助表：
+
 - `memory_processing_jobs`
 
 原始聊天始终保留。低价值内容可以不生成 Card 或 Summary，但仍可通过全文检索找回。

@@ -33,7 +33,7 @@ Telegram 主 Bot 已切换到 SQLite 记忆链路：
 
 - `MEMORY_SYSTEM_OVERVIEW.md`
 - `bridge-workspace/memory-pipeline-lab/MEMORY_RUNTIME_V1.md`
-- `plan.md`
+- `plan.md`（历史需求草稿，只用于追溯目标）
 
 ## 目录边界
 

@@ -1,6 +1,6 @@
 # Local Runtime Handoff
 
-Updated: 2026-07-09
+Updated: 2026-07-16
 
 This note records local Windows startup/runtime changes that are easy to miss when debugging the Telegram Qi bot on this machine.
 

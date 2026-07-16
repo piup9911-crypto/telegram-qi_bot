@@ -67,16 +67,17 @@ Then open the computer LAN address, for example:
 http://192.168.101.8:4144
 ```
 
-The current Vercel site also exposes a no-login live path:
+The current public site may expose the local panel at:
 
 ```text
 https://naginoumi.com/chat-records-live/
 ```
 
-That path is a reverse proxy to the local panel through the current public
-tunnel. The computer, local agent, and tunnel must stay running. This path has
-no authentication, so do not share it with anyone who should not see or edit the
-records.
+That path is maintained outside this repository by the current Cloudflare
+Worker and Named Tunnel setup. The computer, local records service, and tunnel
+must stay running. The local records service does not implement authentication
+itself, so the public route must be protected at the Cloudflare layer and should
+not be shared casually.
 
 The panel provides:
 
@@ -184,21 +185,15 @@ That record cleanup does not change the Telegram message that was sent.
 The public domain does not store chat records. It only forwards requests:
 
 ```text
-naginoumi.com/chat-records-live/ -> public tunnel -> 127.0.0.1:4144
+naginoumi.com/chat-records-live/ -> Cloudflare Worker / Named Tunnel -> 127.0.0.1:4144
 ```
 
-Vercel rewrites are configured in:
+The public routing configuration is no longer stored in this repository. Do not
+restore the deleted `vercel.json`, Quick Tunnel, or localhost.run flow here.
 
-```text
-vercel.json
-```
+## Possible Future Storage
 
-If the temporary tunnel URL changes, update the `/chat-records-live` rewrite
-destination in `vercel.json` and redeploy the site.
-
-## Future Cloud Version
-
-A later cloud version can add:
+If a separate cloud record store is needed later, it can add:
 
 - Manual upload from local JSON to cloud storage.
 - Manual apply from cloud storage back to local JSON.
