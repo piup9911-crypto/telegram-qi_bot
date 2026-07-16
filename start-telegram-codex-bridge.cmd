@@ -7,10 +7,12 @@ REM state directory, bot token, and chat history.
 set "BRIDGE_DIR=%~dp0"
 set "CODEX_LOCK=%BRIDGE_DIR%codex-bridge-state\codex-bridge.lock.json"
 
-REM Keep proxy variables aligned with bridge.env/codex-bridge.env. Telegram and
-REM Codex both work more reliably on this machine when the local proxy is open.
-set HTTP_PROXY=http://127.0.0.1:10808
-set HTTPS_PROXY=http://127.0.0.1:10808
+REM Keep proxy variables aligned with bridge.env/codex-bridge.env. Telegram is
+REM unstable through HTTP CONNECT on this machine, so use SOCKS5H on the local
+REM Clash mixed port.
+set HTTP_PROXY=socks5h://127.0.0.1:10808
+set HTTPS_PROXY=socks5h://127.0.0.1:10808
+set ALL_PROXY=socks5h://127.0.0.1:10808
 set NO_PROXY=localhost,127.0.0.1
 
 echo Checking existing Codex Telegram bridge instance...

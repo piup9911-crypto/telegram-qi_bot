@@ -3,7 +3,7 @@
 ## Purpose
 
 This manager handles local Gem bridge chat records. It is not the official
-Telegram chat history and it is separate from the independent memory system.
+Telegram chat history and it is separate from the SQLite memory system.
 
 The manager exists for two jobs:
 
@@ -35,7 +35,7 @@ Gemini CLI-only session folders are intentionally ignored.
 Out of scope for this version:
 
 - Telegram app message deletion.
-- `INDEPENDENT_MEMORY.md` edits.
+- SQLite memory edits.
 - Automatic upload or automatic down-sync.
 - Public tunnel access by default.
 - Codex bridge chat records.
@@ -130,21 +130,21 @@ For that reason, active-window delete and window-archive operations set:
 ```
 
 The next Gem reply starts a fresh Gemini CLI session while retaining the cleaned
-local active history and independent memory files.
+local active history. SQLite memory remains separate.
 
 ## Relationship To Memory
 
-This system is separate from the independent memory system. It does not read or
-write these files:
+This system does not directly edit the SQLite memory database or the retired
+LMC rollback data:
 
 ```text
-bridge-workspace\INDEPENDENT_MEMORY.md
-C:\Users\yx\gemini-test\INDEPENDENT_MEMORY.md
-memory-docs\generated\independent-memory.md
+bridge-workspace\memory-pipeline-lab\memory-schema-v2-complete.sqlite
+memory-docs\lmc\
 ```
 
 Deleting a chat record only changes what the bridge can use as local chat
-context. It does not erase long-term memory.
+context. It does not automatically erase already-produced Summary, Card or
+fact records.
 
 ## Thought Block Cleanup
 

@@ -16,10 +16,6 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..", "..");
 const STATE_PATH = path.join(ROOT, "bridge-state", "proactive-state.json");
 const PROACTIVE_LOG_PATH = path.join(ROOT, "bridge-state", "proactive.log");
-// 独立记忆文件路径（编译后的长期记忆）
-const INDEPENDENT_MEMORY_PATH = path.join(
-  ROOT, "memory-docs", "generated", "independent-memory.md"
-);
 // 桥接工作区里的人格设定
 const BRIDGE_GEMINI_MD_PATH = path.join(ROOT, "bridge-workspace", "GEMINI.md");
 
@@ -248,8 +244,6 @@ function buildProactivePrompt(windowName, style, recentContext) {
   );
   const timeStr = localTime.toISOString().slice(11, 16);
 
-  // 读取长期记忆（包含用户偏好、习惯、关系上下文）
-  const independentMemory = readText(INDEPENDENT_MEMORY_PATH, "").trim();
   // 读取人格设定
   const personaMd = readText(BRIDGE_GEMINI_MD_PATH, "").trim();
 
@@ -285,15 +279,6 @@ function buildProactivePrompt(windowName, style, recentContext) {
       "",
       "你的人格设定（简要参考，不要在消息里直接提及这些设定）：",
       personaMd.slice(0, 800)
-    );
-  }
-
-  // 注入长期记忆
-  if (independentMemory && independentMemory !== "(empty)") {
-    lines.push(
-      "",
-      "你对她的了解（从过往互动中积累的记忆，用来让消息更自然、更贴切）：",
-      independentMemory.slice(0, 1500)
     );
   }
 

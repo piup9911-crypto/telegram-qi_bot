@@ -4,14 +4,14 @@
   "private": true,
   "description": "Local Telegram bridge for Qi and Codex.",
   "scripts": {
-    "check": "node --check src/codex/telegram-codex-bridge.cjs && node --check src/codex/codex-sdk-session.cjs && node --check src/gem/telegram-gem-bridge.cjs"
+    "check": "node --check src/codex/telegram-codex-bridge.cjs && node --check src/codex/codex-sdk-session.cjs && node --check src/codex/codex-openai-bridge.cjs && node --check src/gem/telegram-gem-bridge.cjs && node --check src/gem/proactive-messages.cjs && node --check src/gem/gemini-cli-openai-bridge.cjs && node --check src/memory/sqlite-memory-runtime.cjs && node --check src/rp/gem-chat-record-manager.cjs"
   },
   "dependencies": {
-    "@openai/codex": "0.133.0",
-    "@openai/codex-sdk": "^0.116.0",
-    "@openai/codex-win32-x64": "npm:@openai/codex@0.133.0-win32-x64"
+    "@openai/codex": "0.144.1",
+    "@openai/codex-sdk": "0.144.1",
+    "@openai/codex-win32-x64": "npm:@openai/codex@0.144.1-win32-x64"
   },
   "overrides": {
-    "@openai/codex": "0.133.0"
+    "@openai/codex": "0.144.1"
   }
 }

@@ -79,6 +79,32 @@ const CODEX_TIMEOUT_MS = Math.max(
   Number.parseInt(process.env.CODEX_BRIDGE_TIMEOUT_MS || "300000", 10) ||
     300000
 );
+const TELEGRAM_PROXY_URL =
+  process.env.CODEX_TELEGRAM_PROXY ||
+  process.env.HTTPS_PROXY ||
+  process.env.HTTP_PROXY ||
+  process.env.ALL_PROXY ||
+  "";
+const TELEGRAM_API_TIMEOUT_MS = Math.max(
+  10000,
+  Number.parseInt(process.env.CODEX_TELEGRAM_API_TIMEOUT_MS || "20000", 10) ||
+    20000
+);
+const TELEGRAM_POLL_TIMEOUT_SEC = Math.max(
+  5,
+  Number.parseInt(process.env.CODEX_TELEGRAM_POLL_TIMEOUT_SEC || "10", 10) ||
+    10
+);
+const TELEGRAM_STARTUP_CALL_TIMEOUT_MS = Math.max(
+  5000,
+  Number.parseInt(process.env.CODEX_TELEGRAM_STARTUP_TIMEOUT_MS || "15000", 10) ||
+    15000
+);
+const PROCESSING_MESSAGE_TTL_MS = Math.max(
+  60000,
+  Number.parseInt(process.env.CODEX_TELEGRAM_DEDUPE_TTL_MS || "300000", 10) ||
+    300000
+);
 const IMAGE_EXTENSION_MIME_TYPES = new Map([
   [".jpg", "image/jpeg"],
   [".jpeg", "image/jpeg"],
@@ -1051,6 +1077,42 @@ function telegramCallWithTimeout(promise, label, timeoutMs = 300000) {
   });
 }
 
+function isRetriableTelegramTransportError(error) {
+  const message = error && error.message ? error.message : String(error || "");
+  return /socket hang up|ECONNRESET|ETIMEDOUT|ESOCKETTIMEDOUT|EAI_AGAIN|ECONNREFUSED|EFATAL|tunneling socket|TLS connection|Premature close|timeout|timed out/i.test(message);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function telegramCallWithRetry(label, createPromise, options = {}) {
+  const maxAttempts = Math.max(1, Number(options.maxAttempts || 2));
+  const timeoutMs = Number(options.timeoutMs || TELEGRAM_API_TIMEOUT_MS);
+  const retryDelayMs = Number(options.retryDelayMs || 1500);
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await telegramCallWithTimeout(createPromise(), label, timeoutMs);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts || !isRetriableTelegramTransportError(error)) {
+        throw error;
+      }
+      log("retrying telegram API call once after transport error", {
+        label,
+        attempt,
+        maxAttempts,
+        error: error && error.message ? error.message : String(error)
+      });
+      await sleep(retryDelayMs);
+    }
+  }
+
+  throw lastError;
+}
+
 async function sendLongMessage(bot, chatId, text) {
   const parts = splitMessage(text);
   for (let index = 0; index < parts.length; index += 1) {
@@ -1062,9 +1124,9 @@ async function sendLongMessage(bot, chatId, text) {
       length: part.length,
       preview: previewText(part)
     });
-    const sent = await telegramCallWithTimeout(
-      bot.sendMessage(chatId, part),
-      "Telegram sendMessage"
+    const sent = await telegramCallWithRetry(
+      "Telegram sendMessage",
+      () => bot.sendMessage(chatId, part)
     );
     log("telegram send ok", {
       chatId,
@@ -1098,9 +1160,9 @@ function createTaskProgressReporter(bot, chatId, taskContext) {
       projectPath: taskContext.projectPath,
       lastSummary: message
     });
-    await telegramCallWithTimeout(
-      bot.sendMessage(chatId, message),
-      "Telegram progress sendMessage"
+    await telegramCallWithRetry(
+      "Telegram progress sendMessage",
+      () => bot.sendMessage(chatId, message)
     ).catch((error) => {
       log("telegram progress notification failed", {
         chatId,
@@ -1676,9 +1738,9 @@ async function handleTelegramMessage(bot, msg) {
         });
       }
       if (!taskState.cancelled) {
-        await telegramCallWithTimeout(
-          bot.sendMessage(chatId, `这里卡住了，我把原因给你：${error.message || String(error)}`),
-          "Telegram error sendMessage"
+        await telegramCallWithRetry(
+          "Telegram error sendMessage",
+          () => bot.sendMessage(chatId, `这里卡住了，我把原因给你：${error.message || String(error)}`)
         ).catch((sendError) => {
           log("telegram error notification failed", {
             chatId,
@@ -1710,12 +1772,52 @@ async function startBridge() {
   ensureCodexIdentityFiles();
 
   const TelegramBot = requireFromTelegramPackage("node-telegram-bot-api");
+  log("codex telegram proxy configured", {
+    proxy: TELEGRAM_PROXY_URL ? TELEGRAM_PROXY_URL.replace(/:\/\/.*@/, "://***@") : ""
+  });
   const bot = new TelegramBot(TELEGRAM_TOKEN, {
-    polling: true,
-    filepath: false
+    polling: {
+      autoStart: false,
+      params: {
+        timeout: TELEGRAM_POLL_TIMEOUT_SEC
+      }
+    },
+    filepath: false,
+    request: {
+      ...(TELEGRAM_PROXY_URL ? { proxy: TELEGRAM_PROXY_URL } : {}),
+      timeout: TELEGRAM_API_TIMEOUT_MS
+    }
+  });
+
+  const processingMessageIds = new Set();
+
+  bot.on("update", (update) => {
+    if (update && update.update_id && bot._polling) {
+      bot._polling.offset = Math.max(
+        bot._polling.offset || 0,
+        update.update_id + 1
+      );
+    }
   });
 
   bot.on("message", (msg) => {
+    const msgKey = `${msg.chat ? msg.chat.id : ""}:${msg.message_id}`;
+    if (processingMessageIds.has(msgKey)) {
+      log("skipping duplicate message_id from polling", {
+        msgKey,
+        chatId: msg.chat ? msg.chat.id : "",
+        messageId: msg.message_id
+      });
+      return;
+    }
+    processingMessageIds.add(msgKey);
+    const ttlTimer = setTimeout(() => {
+      processingMessageIds.delete(msgKey);
+    }, PROCESSING_MESSAGE_TTL_MS);
+    if (typeof ttlTimer.unref === "function") {
+      ttlTimer.unref();
+    }
+
     handleTelegramMessage(bot, msg).catch((error) => {
       log("unhandled message error", error.message);
     });
@@ -1726,7 +1828,12 @@ async function startBridge() {
     log("polling error", message);
   });
 
-  await telegramCallWithTimeout(
+  if (
+    String(process.env.CODEX_TELEGRAM_SETUP_COMMANDS || "false")
+      .trim()
+      .toLowerCase() === "true"
+  ) {
+    await telegramCallWithTimeout(
     bot.setMyCommands([
       { command: "task", description: "进入任务模式" },
       { command: "done", description: "结束任务模式" },
@@ -1738,17 +1845,24 @@ async function startBridge() {
       { command: "model", description: "切换 Codex 模型" },
       { command: "help", description: "帮助" }
     ]),
-    "Telegram setMyCommands"
+    "Telegram setMyCommands",
+    TELEGRAM_STARTUP_CALL_TIMEOUT_MS
   ).catch((error) => {
     log("telegram command menu setup failed; continuing startup", error.message);
   });
 
-  const botInfo = await telegramCallWithTimeout(bot.getMe(), "Telegram getMe").catch(
-    (error) => {
-      log("telegram getMe failed; continuing startup", error.message);
-      return null;
-    }
-  );
+  } else {
+    log("telegram command menu setup skipped");
+  }
+
+  const botInfo = await telegramCallWithTimeout(
+    bot.getMe(),
+    "Telegram getMe",
+    TELEGRAM_STARTUP_CALL_TIMEOUT_MS
+  ).catch((error) => {
+    log("telegram getMe failed; continuing startup", error.message);
+    return null;
+  });
 
   log("codex telegram bridge started", {
     bot: botInfo && botInfo.username ? botInfo.username : "unknown",
@@ -1759,6 +1873,15 @@ async function startBridge() {
     allowedChatIds: ALLOWED_CHAT_IDS,
     timeoutMs: CODEX_TIMEOUT_MS,
     codexCommand: CODEX_CMD
+  });
+
+  log("codex telegram polling started", {
+    timeoutSec: TELEGRAM_POLL_TIMEOUT_SEC
+  });
+  bot.startPolling().catch((error) => {
+    log("codex telegram polling start failed", {
+      error: error && error.message ? error.message : String(error)
+    });
   });
 }
 

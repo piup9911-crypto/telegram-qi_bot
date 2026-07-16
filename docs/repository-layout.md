@@ -1,37 +1,33 @@
 # Repository Layout
 
-This repository is the standalone Telegram Qi bot bridge. Runtime state and
-local secrets stay at the repository root, while source files are grouped by
-feature.
+最后核对：2026-07-16
 
-## Root
+```text
+src/
+  adapters/   Antigravity、sidecar、云端适配
+  gem/        Telegram Gem Bot 与 Gemini OpenAI bridge
+  codex/      Telegram Codex Bot 与 Codex OpenAI bridge
+  memory/     SQLite 运行时和旧 LMC 回滚适配
+  rp/         聊天记录与 RP runtime
+scripts/      备份、导入、探测和索引维护
+tests/        回归测试
+ui/           本地服务页面
+docs/         当前仍有效的设计与维护说明
+```
 
-- `README.md`, `plan.md`, and maintenance notes stay at the root for quick
-  reading.
-- `start-*.cmd` launch the local services and point into `src/`.
-- `bridge.env.example` documents environment variables. Real `bridge.env` and
-  runtime state are local-only.
+本机运行数据位于仓库根目录，但被 `.gitignore` 排除：
 
-## Source
+```text
+bridge-home/
+bridge-state/
+bridge-workspace/
+codex-bridge-state/
+codex-bridge-workspace/
+st-bridge-home/
+st-bridge-state/
+st-bridge-workspace/
+memory-docs/
+rp-config/
+```
 
-- `src/gem/`: Telegram Gem bot, Gemini/OpenAI bridge, Gem status/control agents,
-  proactive messages, and Telegram MCP helper.
-- `src/memory/`: local memory stores, LMC-compatible code, prompt memory
-  context, vector recall, memory manager service, and memory sync.
-- `src/adapters/`: Antigravity CLI/sidecar adapters and cloud-memory client.
-- `src/codex/`: Codex Telegram bot and Codex OpenAI/status/control helpers.
-- `src/rp/`: RP chat-record manager and RP runtime.
-
-## Support
-
-- `ui/`: HTML tools served by local services.
-- `scripts/`: one-shot maintenance and rebuild commands.
-- `tests/`: local test/probe files.
-- `docs/`: design notes and project maps.
-
-## Runtime
-
-- `bridge-state/`, `bridge-workspace/`, and `bridge-home/` are the Gem bot
-  runtime state.
-- `codex-bridge-state/` and `codex-bridge-workspace/` belong to the Codex bot.
-- `memory-docs/` contains local memory records and generated memory files.
+`bridge-workspace/` 自身包含一个本机 Git 仓库，用于管理 Gem 工作区规则；不要把它当作主仓库源码目录。记忆实验代码目前位于 `bridge-workspace/memory-pipeline-lab/`，正式运行时只依赖其中的数据库、统一召回服务、MCP 和必要索引。

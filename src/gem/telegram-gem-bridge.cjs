@@ -17,11 +17,7 @@ const {
   getCascadeTrajectory,
   looksLikeBootstrapUserMessage
 } = require("../adapters/antigravity-sidecar-adapter.cjs");
-const {
-  CORE_MEMORY_FILE_NAME,
-  syncSharedMemory
-} = require("../memory/shared-memory-sync.cjs");
-const { buildMemoryContext } = require("../memory/memory-context.cjs");
+const CORE_MEMORY_FILE_NAME = "CORE_MEMORY.md";
 const {
   buildChatRetrievalQuery,
   indexChatSources,
@@ -32,7 +28,10 @@ const {
   VECTOR_MODEL,
   embedTexts
 } = require("../memory/memory-vector.cjs");
-const { getLmcStatus, logTelegramTurn } = require("../memory/lmc-memory-store.cjs");
+const {
+  getSqliteMemoryStatus,
+  syncChatStateToSqlite
+} = require("../memory/sqlite-memory-runtime.cjs");
 
 const VERSION = "0.3.0";
 const ROOT = path.resolve(__dirname, "..", "..");
@@ -50,6 +49,8 @@ const MEMORY_INGEST_STATE_PATH = path.join(
   "memory-ingest-state.json"
 );
 const BRIDGE_LOG_PATH = path.join(BRIDGE_STATE_DIR, "bridge.log");
+const BRIDGE_LOG_MAX_BYTES = 8 * 1024 * 1024;
+const BRIDGE_LOG_KEEP_BYTES = 2 * 1024 * 1024;
 const BRIDGE_LOCK_PATH = path.join(BRIDGE_STATE_DIR, "bridge.lock.json");
 const BRIDGE_MUTEX_HOST = process.env.TELEGRAM_GEM_BRIDGE_MUTEX_HOST || "127.0.0.1";
 const BRIDGE_MUTEX_PORT =
@@ -185,6 +186,25 @@ const SHARED_MEMORY_REFRESH_MS = Math.max(
   Number.parseInt(process.env.BRIDGE_SHARED_MEMORY_REFRESH_MS || "300000", 10) ||
     300000
 );
+const SQLITE_MEMORY_ENABLED = parseEnvBoolean(
+  process.env.BRIDGE_SQLITE_MEMORY_ENABLED,
+  true
+);
+const SQLITE_MEMORY_SYNC_DELAY_MS = Math.max(
+  100,
+  Number.parseInt(
+    process.env.BRIDGE_SQLITE_MEMORY_SYNC_DELAY_MS || "500",
+    10
+  ) || 500
+);
+const LEGACY_LMC_RECALL_ENABLED = parseEnvBoolean(
+  process.env.BRIDGE_LEGACY_LMC_RECALL_ENABLED,
+  false
+);
+const LEGACY_SHARED_MEMORY_SYNC_ENABLED = parseEnvBoolean(
+  process.env.BRIDGE_LEGACY_SHARED_MEMORY_SYNC_ENABLED,
+  false
+);
 // Memory analysis is delayed until the chat becomes idle, but it is no longer
 // tied to a fixed ten-turn summary. The background analyzer decides whether the
 // pending conversation contains an event worth keeping and may legitimately
@@ -265,6 +285,14 @@ const TELEGRAM_STARTUP_CALL_TIMEOUT_MS = Math.max(
   3000,
   Number.parseInt(process.env.BRIDGE_TELEGRAM_STARTUP_CALL_TIMEOUT_MS || "15000", 10) || 15000
 );
+const TELEGRAM_API_TIMEOUT_MS = Math.max(
+  10000,
+  Number.parseInt(process.env.BRIDGE_TELEGRAM_API_TIMEOUT_MS || "20000", 10) || 20000
+);
+const TELEGRAM_POLL_TIMEOUT_SEC = Math.max(
+  5,
+  Number.parseInt(process.env.BRIDGE_TELEGRAM_POLL_TIMEOUT_SEC || "10", 10) || 10
+);
 const SHARED_MEMORY_PAGE_URL =
   process.env.SHARED_MEMORY_PAGE_URL ||
   "https://www.naginoumi.com/memory-monitor.html";
@@ -332,6 +360,7 @@ const IMAGE_EXTENSION_MIME_TYPES = new Map([
 ]);
 const memoryIngestCooldowns = new Map();
 const memoryIngestTimers = new Map();
+const sqliteMemorySyncTimers = new Map();
 // Memory extraction has its own queue. Reusing the Telegram reply queue caused
 // a new user message to wait behind a slow background Gemini summary.
 const memoryIngestRuns = new Map();
@@ -366,8 +395,28 @@ const THINKING_MODE_ALIASES = new Map([
   ["鏄剧ず", "visible"]
 ]);
 
+let bridgeLogWritesSinceTrimCheck = 100;
+
+function trimBridgeLogIfNeeded() {
+  bridgeLogWritesSinceTrimCheck += 1;
+  if (bridgeLogWritesSinceTrimCheck < 100) return;
+  bridgeLogWritesSinceTrimCheck = 0;
+  try {
+    const stat = fs.statSync(BRIDGE_LOG_PATH);
+    if (stat.size <= BRIDGE_LOG_MAX_BYTES) return;
+    const data = fs.readFileSync(BRIDGE_LOG_PATH);
+    const tail = data.subarray(Math.max(0, data.length - BRIDGE_LOG_KEEP_BYTES));
+    const firstNewline = tail.indexOf(0x0a);
+    fs.writeFileSync(
+      BRIDGE_LOG_PATH,
+      firstNewline >= 0 ? tail.subarray(firstNewline + 1) : tail
+    );
+  } catch {}
+}
+
 function log(...args) {
   ensureDir(BRIDGE_STATE_DIR);
+  trimBridgeLogIfNeeded();
   const line = args
     .map((arg) => {
       if (typeof arg === "string") return arg;
@@ -1455,7 +1504,19 @@ function readSharedMemoryStatus() {
   return readJson(SHARED_MEMORY_CACHE_PATH, null);
 }
 
+function logLegacyTelegramTurn(payload) {
+  const { logTelegramTurn } = require("../memory/lmc-memory-store.cjs");
+  return logTelegramTurn(payload);
+}
+
 async function refreshSharedMemory(force = false) {
+  if (!LEGACY_SHARED_MEMORY_SYNC_ENABLED) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "Legacy shared/LMC memory sync is retired."
+    };
+  }
   const cached = readSharedMemoryStatus();
   if (!force && cached && cached.syncedAt) {
     const ageMs = Date.now() - new Date(cached.syncedAt).getTime();
@@ -1471,6 +1532,7 @@ async function refreshSharedMemory(force = false) {
   }
 
   try {
+    const { syncSharedMemory } = require("../memory/shared-memory-sync.cjs");
     const result = await syncSharedMemory({
       cachePath: SHARED_MEMORY_CACHE_PATH,
       // 浜戠/鐙珛璁板繂鐜板湪鍙啓鍏?Telegram 宸ヤ綔鍖猴紝涓嶅啀鍚屾鍒版櫘閫?Gemini CLI銆?
@@ -1515,6 +1577,9 @@ async function buildResponsiveMemoryContext(
   activeHistory,
   promptControls
 ) {
+  if (!LEGACY_LMC_RECALL_ENABLED) {
+    return [];
+  }
   const retrievalStartedAt = Date.now();
   const timing = {
     buildQueryMs: 0,
@@ -1577,6 +1642,7 @@ async function buildResponsiveMemoryContext(
       }
     }
     const memoryContextStartedAt = Date.now();
+    const { buildMemoryContext } = require("../memory/memory-context.cjs");
     const lines = await buildMemoryContext(latestUserMessage, history, {
       chatRecall,
       retrievalStartedAt,
@@ -1951,7 +2017,7 @@ function logNativeTrajectoryTurns(chatId, messages, metadata = {}) {
     if (!current || current.role !== "user") continue;
     const next = sourceMessages[index + 1];
     if (!next || next.role !== "assistant") continue;
-    const turnEvents = logTelegramTurn({
+    const turnEvents = logLegacyTelegramTurn({
       chatId,
       userText: current.content || "",
       assistantText: next.content || "",
@@ -2039,6 +2105,7 @@ async function syncTrajectoryIntoChatState(chatId) {
     // Update the fingerprint on disk so loadChatState does not null out the
     // sessionId on the next turn.
     saveChatState(state);
+    scheduleSqliteMemorySync(chatId);
     scheduleChatVectorRefresh(chatId, state.history);
     try {
       const rawEvents = logNativeTrajectoryTurns(chatId, appendedMessages, {
@@ -2451,6 +2518,7 @@ function buildChatVectorSources(chatId, activeHistory) {
 }
 
 function scheduleChatVectorRefresh(chatId, activeHistory, delayMs = CHAT_VECTOR_REFRESH_DELAY_MS) {
+  if (!LEGACY_LMC_RECALL_ENABLED) return;
   const key = String(chatId);
   const existing = chatVectorRefreshTimers.get(key);
   if (existing) clearTimeout(existing);
@@ -2542,6 +2610,42 @@ function saveChatState(chatState) {
   state.updatedAt = new Date().toISOString();
   state.lastHistoryFingerprint = computeHistoryFingerprint(state.history);
   writeJson(statePath, state);
+}
+
+function scheduleSqliteMemorySync(
+  chatId,
+  delay = SQLITE_MEMORY_SYNC_DELAY_MS
+) {
+  if (!SQLITE_MEMORY_ENABLED) return;
+  const key = String(chatId);
+  const existing = sqliteMemorySyncTimers.get(key);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    sqliteMemorySyncTimers.delete(key);
+    try {
+      const state = loadChatState(key);
+      const result = syncChatStateToSqlite(state, {
+        sourceFile: path
+          .relative(ROOT, getChatStatePath(key))
+          .replaceAll("\\", "/"),
+        enqueue: true
+      });
+      log("sqlite memory sync completed", {
+        chatId: key,
+        conversationId: result.conversation_id,
+        insertedMessages: result.inserted_messages,
+        databaseMessages: result.database_messages,
+        queue: result.queue
+      });
+    } catch (error) {
+      log("sqlite memory sync failed", {
+        chatId: key,
+        error: error && error.message ? error.message : String(error)
+      });
+    }
+  }, Math.max(0, Number(delay) || 0));
+  if (typeof timer.unref === "function") timer.unref();
+  sqliteMemorySyncTimers.set(key, timer);
 }
 
 function resetChatState(chatId) {
@@ -3475,26 +3579,26 @@ async function sendModelMenu(bot, chatId, chatState) {
 }
 
 async function sendMemoryMenu(bot, chatId) {
-  const lmcStatus = getLmcStatus();
+  const memoryStatus = getSqliteMemoryStatus();
   await bot.sendMessage(
     chatId,
     [
-      "Memory system",
+      "记忆系统",
       "",
-      "Old memory is still running. The new LMC layer is connected and will start filling from new Telegram turns after this restart.",
+      "当前主系统：SQLite 原始对话 + 摘要 + Card + 事实时间线。",
+      "旧 LMC 已退出回复热路径，只保留为暂时归档和回滚材料。",
       "",
-      "LMC status:",
-      `raw events: ${lmcStatus.rawEventCount}`,
-      `event chunks: ${lmcStatus.eventChunkCount} (pending ${lmcStatus.pendingChunkCount} / processed ${lmcStatus.processedChunkCount})`,
-      `curated memories: ${lmcStatus.currentCuratedMemoryCount}/${lmcStatus.curatedMemoryCount}`,
-      `relations: ${lmcStatus.relationCount}`,
-      `patrol suggestions: ${lmcStatus.patrolSuggestionCount}`,
+      `原始消息：${memoryStatus.raw_messages || 0}`,
+      `事件摘要：${memoryStatus.event_summaries || 0}`,
+      `Memory Card：${memoryStatus.memory_cards || 0}`,
+      `事实时间线：${memoryStatus.fact_timelines || 0}`,
+      `事件索引：${memoryStatus.event_occurrences || 0}`,
+      `待处理任务：${memoryStatus.pending_jobs || 0}`,
       "",
-      `latest raw event: ${formatTimeOrFallback(lmcStatus.latestRawEventAt, "none")}`,
-      `latest chunk: ${formatTimeOrFallback(lmcStatus.latestChunkAt, "none")}`,
-      `latest curated: ${formatTimeOrFallback(lmcStatus.latestCuratedAt, "none")}`,
+      `最新原始消息：${formatTimeOrFallback(memoryStatus.latest_message_at, "暂无")}`,
+      `最新导入：${formatTimeOrFallback(memoryStatus.latest_import_at, "暂无")}`,
       "",
-      "Use the buttons below to view persona memory or daily memory."
+      "历史问题由当前 Gem 按需调用 memory_recall，不再每轮预先召回。"
     ].join("\n"),
     buildMemoryMenuKeyboard()
   );
@@ -3518,29 +3622,22 @@ async function sendPersonaMemoryInfo(bot, chatId) {
 }
 
 async function sendDailyMemoryInfo(bot, chatId) {
-  const sharedMemory = readSharedMemoryStatus();
-  const lmcStatus = getLmcStatus();
+  const memoryStatus = getSqliteMemoryStatus();
   await bot.sendMessage(
     chatId,
     [
-      "Daily memory",
+      "记忆运行状态",
       "",
-      "There are now two layers: legacy cloud daily memory + the new LMC three-layer memory.",
+      "每轮对话只增量保存原文；摘要、Card 和事实整理进入后台队列。",
+      "后台模型目前关闭，因此不会消耗额外模型额度。",
       "",
-      "LMC:",
-      `raw events: ${lmcStatus.rawEventCount}`,
-      `life event chunks: ${lmcStatus.eventChunkCount}`,
-      `curated memories: ${lmcStatus.currentCuratedMemoryCount}`,
-      `relations: ${lmcStatus.relationCount}`,
+      `原始消息：${memoryStatus.raw_messages || 0}`,
+      `摘要：${memoryStatus.event_summaries || 0}`,
+      `Card：${memoryStatus.memory_cards || 0}`,
+      `事实线：${memoryStatus.fact_timelines || 0}`,
+      `后台待处理：${memoryStatus.pending_jobs || 0}`,
       "",
-      "Legacy cloud memory:",
-      `last sync: ${formatTimeOrFallback(sharedMemory && sharedMemory.syncedAt, "none")}`,
-      `approved entries: ${sharedMemory && Number.isFinite(sharedMemory.approvedEntryCount) ? sharedMemory.approvedEntryCount : 0}`,
-      `pending entries: ${sharedMemory && Number.isFinite(sharedMemory.pendingEntryCount) ? sharedMemory.pendingEntryCount : 0}`,
-      "",
-      `summary: ${truncateForPreview(sharedMemory && sharedMemory.content)}`,
-      "",
-      `web page: ${SHARED_MEMORY_PAGE_URL}`
+      `最新记录：${formatTimeOrFallback(memoryStatus.latest_message_at, "暂无")}`
     ].join("\n"),
     buildMemoryMenuKeyboard()
   );
@@ -5020,7 +5117,7 @@ function sleep(ms) {
 
 async function telegramCallWithRetry(label, createPromise, options = {}) {
   const maxAttempts = Math.max(1, Number(options.maxAttempts || 2));
-  const timeoutMs = Number(options.timeoutMs || 300000);
+  const timeoutMs = Number(options.timeoutMs || TELEGRAM_API_TIMEOUT_MS);
   const retryDelayMs = Number(options.retryDelayMs || 1500);
   let lastError = null;
 
@@ -6657,6 +6754,7 @@ async function handleTelegramMessage(bot, msg) {
       });
       try {
         saveChatState(state);
+        scheduleSqliteMemorySync(activeWindowId);
         scheduleChatVectorRefresh(activeWindowId, state.history);
         reportFlowEvent({
           step: "save-chat-record",
@@ -6783,7 +6881,7 @@ async function handleTelegramMessage(bot, msg) {
       });
       if (LMC_MEMORY_ENABLED) {
         try {
-          const events = logTelegramTurn({
+          const events = logLegacyTelegramTurn({
             chatId,
             userText: messageText,
             assistantText: assistantRecordText,
@@ -7044,6 +7142,12 @@ async function switchMainWindowByLabel(bot, telegramChatId, label) {
 }
 
 async function warmMemoryVectorModel() {
+  if (!LEGACY_LMC_RECALL_ENABLED) {
+    log("legacy memory vector warmup skipped", {
+      reason: "BRIDGE_LEGACY_LMC_RECALL_ENABLED is false"
+    });
+    return;
+  }
   try {
     const startedAt = Date.now();
     const vectors = await embedTexts(
@@ -7127,6 +7231,13 @@ async function startBridge() {
     throw error;
   }
 
+  if (SQLITE_MEMORY_ENABLED) {
+    for (const telegramChatId of ALLOWED_CHAT_IDS) {
+      for (const windowId of listMainWindowIds(telegramChatId)) {
+        scheduleSqliteMemorySync(windowId, 100);
+      }
+    }
+  }
   await warmMemoryVectorModel();
   loadProactiveModule();
 
@@ -7140,11 +7251,11 @@ async function startBridge() {
   const bot = new TelegramBot(TELEGRAM_TOKEN, {
     polling: {
       params: {
-        timeout: 30
+        timeout: TELEGRAM_POLL_TIMEOUT_SEC
       }
     },
     request: {
-      timeout: 300000
+      timeout: TELEGRAM_API_TIMEOUT_MS
     },
     filepath: false
   });

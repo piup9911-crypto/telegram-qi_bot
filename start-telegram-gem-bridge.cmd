@@ -8,11 +8,14 @@ REM bridge process; duplicate launchers can cause 409 polling conflicts.
 set "BRIDGE_DIR=%~dp0"
 set "BRIDGE_LOCK=%BRIDGE_DIR%bridge-state\bridge.lock.json"
 
-REM This bridge currently uses the local proxy on 127.0.0.1:10808 for Telegram.
+REM This bridge uses the local Clash mixed port. Telegram is unstable through
+REM HTTP CONNECT on this machine, so use SOCKS5H to keep DNS and TLS inside the
+REM proxy path.
 REM If you switch to direct network mode later, also update bridge.env and these
 REM three variables together so the desktop launcher matches the bridge config.
-set HTTP_PROXY=http://127.0.0.1:10808
-set HTTPS_PROXY=http://127.0.0.1:10808
+set HTTP_PROXY=socks5h://127.0.0.1:10808
+set HTTPS_PROXY=socks5h://127.0.0.1:10808
+set ALL_PROXY=socks5h://127.0.0.1:10808
 set NO_PROXY=localhost,127.0.0.1
 
 echo Checking existing Telegram bridge instance...
