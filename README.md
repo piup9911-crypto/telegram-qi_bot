@@ -1,3 +1,11 @@
+> [!CAUTION]
+> **Historical mixed repository / 历史综合仓库**
+> This repository records an earlier local Telegram / Gemini / Codex / RP / memory stack. Its documents contain multiple generations of architecture and should not be treated as the source of truth for current NAGINOUMI.
+> For current NAGINOUMI web/runtime work, check `naginoumi-council` and `hello-vercel`. For the standalone Codex ↔ Telegram channel, check `codex-telegram-channel`.
+> Keep this repository as compatibility/history unless a component is explicitly confirmed still active.
+
+---
+
 # Telegram–Gemini Bridge
 
 本仓库是阿祈 Telegram Bot 的本机桥接项目，也保留 Codex Bot、OpenAI 兼容接口和 RP 记录工具。
